@@ -1,0 +1,90 @@
+name: energy_demand_ml_env001  # Environment for energy demand forecasting (time series + ML)
+
+channels:
+  - conda-forge   # Preferred for ML + data science ecosystem
+  - defaults
+
+dependencies:
+  # ---------------------------
+  # Core Python + data handling
+  # ---------------------------
+  - python=3.11              # Stable version with broad package support
+  - pandas                  # Time series handling, datetime indexing, feature engineering
+  - numpy                   # Numerical computing backbone
+  - scipy                   # Optimization, stats utilities (used by statsmodels, etc.)
+  - pyarrow                 # Fast I/O (Parquet), useful for large datasets
+  - duckdb                  # Fast analytical SQL engine for local data exploration
+
+  # ---------------------------
+  # Visualization
+  # ---------------------------
+  - matplotlib              # Required by many forecasting libraries (even if using Plotly)
+  - plotly                  # Interactive visualization (preferred for your workflow)
+  - python-kaleido          # Static image export for Plotly (for reports/portfolio)
+
+  # ---------------------------
+  # Classical time series models
+  # ---------------------------
+  - statsmodels             # SARIMAX (ARIMA with exogenous variables like weather)
+  - pmdarima                # A "no-nonsense" library that brings R's auto.arima functionality to Python. Making it much easier to find optimal ARIMA parameters
+
+  # ---------------------------
+  # Machine learning models
+  # ---------------------------
+  - scikit-learn            # General ML utilities, preprocessing, pipelines
+  - xgboost                 # Gradient boosting (strong baseline for tabular forecasting)
+  - lightgbm                # Faster gradient boosting (often best for time series tabular)
+  - shap                    # Python package used for explaining the outputs of any machine learning model
+  
+  # ---------------------------
+  # Forecasting frameworks (ML-based)
+  # ---------------------------
+  - skforecast              # Wrapper to use sklearn/GBM models with lag features + forecasting
+  - mlforecast              # Efficient ML forecasting (lags, rolling features, multi-series)
+
+  # ---------------------------
+  # Model tuning + interpretability
+  # ---------------------------
+  - optuna                  # Hyperparameter optimization (better than grid search)
+  - shap                    # Model explainability (feature importance, interactions)
+
+  # ---------------------------
+  # Experiment tracking / data quality
+  # ---------------------------
+  - mlflow                  # Track experiments, parameters, metrics
+  - great-expectations      # Data validation (useful for production pipelines)
+  - joblib                  # Lightweight pipelining: using Python functions as pipeline jobs.
+
+  # ---------------------------
+  # App / deployment tools
+  # ---------------------------
+  - fastapi                 # API for serving models
+  - uvicorn                 # ASGI server for FastAPI
+  - streamlit               # Quick dashboards / model demos
+
+  # ---------------------------
+  # Development environment
+  # ---------------------------
+  - jupyterlab              # Notebook environment
+  - ipykernel               # Kernel for Jupyter
+
+  # ---------------------------
+  # Testing
+  # ---------------------------
+  - pytest                  # Unit testing
+  - pytest-cov              # Test coverage
+
+  # ---------------------------
+  # Utilities
+  # ---------------------------
+  - python-dotenv           # Environment variable management
+  - pip                     # Needed for packages not available on conda
+
+  # ---------------------------
+  # Pip-only installs
+  # ---------------------------
+  - pip:
+      - prophet            # Additive time series model (trend + seasonality + holidays)
+      - holidays           # Holiday features (useful for load forecasting)
+      - pmdarima           # Auto-ARIMA (automatic order selection)
+      - httpx              # Async HTTP client (optional, useful for APIs/data pulls)

@@ -1,0 +1,11 @@
+# Runtime dependencies for the Streamlit portfolio app.
+# prophet and xgboost are only needed by the data-generation scripts and are
+# NOT required to serve the app — predictions.csv and model_results.json are
+# pre-generated artifacts mounted at runtime.
+# statsmodels IS required: plotly express uses it for trendline="ols" in eda.py.
+
+streamlit>=1.32.0
+pandas>=2.0.0
+numpy>=1.26.0
+plotly>=5.18.0
+statsmodels>=0.14.0
