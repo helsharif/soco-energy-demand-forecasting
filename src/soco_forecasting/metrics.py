@@ -35,3 +35,21 @@ def prediction_frame(datetime, actual, predicted, model_name: str, split_name: s
     df["residual"] = df["actual"] - df["predicted"]
     df["absolute_error"] = df["residual"].abs()
     return df
+
+
+def metrics_by_forecast_horizon(predictions: pd.DataFrame) -> pd.DataFrame:
+    if "forecast_horizon_hour" not in predictions.columns:
+        raise ValueError("predictions must include forecast_horizon_hour.")
+
+    rows = []
+    group_cols = ["model", "split", "forecast_horizon_hour"]
+    for (model, split, horizon_hour), part in predictions.groupby(group_cols):
+        row = {
+            "model": model,
+            "split": split,
+            "forecast_horizon_hour": int(horizon_hour),
+            "n_rows": int(len(part)),
+        }
+        row.update(regression_metrics(part["actual"], part["predicted"]))
+        rows.append(row)
+    return pd.DataFrame(rows).sort_values(["model", "split", "forecast_horizon_hour"])

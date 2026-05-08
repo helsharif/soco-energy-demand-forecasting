@@ -110,6 +110,44 @@ def model_comparison_bar(metrics_df: pd.DataFrame, metric: str, title: str) -> g
     return fig
 
 
+def horizon_metric_plot(horizon_metrics_df: pd.DataFrame, metric: str, title: str) -> go.Figure:
+    fig = px.line(
+        horizon_metrics_df,
+        x="forecast_horizon_hour",
+        y=metric,
+        color="split",
+        markers=True,
+        title=title,
+        template=PLOT_TEMPLATE,
+        labels={
+            "forecast_horizon_hour": "Forecast Horizon Hour",
+            metric: metric.upper(),
+            "split": "Split",
+        },
+    )
+    fig.update_xaxes(dtick=6)
+    return fig
+
+
+def model_horizon_comparison_plot(horizon_metrics_df: pd.DataFrame, metric: str, title: str) -> go.Figure:
+    fig = px.line(
+        horizon_metrics_df,
+        x="forecast_horizon_hour",
+        y=metric,
+        color="model",
+        markers=True,
+        title=title,
+        template=PLOT_TEMPLATE,
+        labels={
+            "forecast_horizon_hour": "Forecast Horizon Hour",
+            metric: metric.upper(),
+            "model": "Model",
+        },
+    )
+    fig.update_xaxes(dtick=6)
+    return fig
+
+
 def feature_importance_plot(importance_df: pd.DataFrame, title: str, top_n: int = 25) -> go.Figure:
     plot_df = importance_df.sort_values("importance", ascending=False).head(top_n).sort_values("importance")
     fig = px.bar(

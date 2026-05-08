@@ -9,8 +9,8 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 import pandas as pd
 
 from soco_forecasting.config import ensure_artifact_dirs, load_config, project_path
-from soco_forecasting.metrics import regression_metrics
-from soco_forecasting.plots import model_comparison_bar, save_plotly_figure
+from soco_forecasting.metrics import metrics_by_forecast_horizon, regression_metrics
+from soco_forecasting.plots import model_comparison_bar, model_horizon_comparison_plot, save_plotly_figure
 
 
 PREDICTION_FILES = [
@@ -44,6 +44,23 @@ def main() -> None:
             model_comparison_bar(metrics_df, metric, f"Model Comparison: {metric.upper()}"),
             f"reports/figures/model_comparison_{metric}",
         )
+
+    if "forecast_horizon_hour" in predictions.columns:
+        horizon_metrics_df = metrics_by_forecast_horizon(predictions)
+        horizon_metrics_path = project_path("reports/metrics/model_comparison_horizon_metrics.csv")
+        horizon_metrics_df.to_csv(horizon_metrics_path, index=False)
+
+        for split_name, split_metrics in horizon_metrics_df.groupby("split"):
+            for metric in ["mae", "rmse", "mape"]:
+                fig = model_horizon_comparison_plot(
+                    split_metrics,
+                    metric,
+                    f"Model Comparison: {split_name.title()} {metric.upper()} by Forecast Horizon",
+                )
+                save_plotly_figure(
+                    fig,
+                    f"reports/figures/model_comparison_{split_name}_{metric}_by_horizon",
+                )
 
     print(f"Saved comparison table: {metrics_path}")
     print(metrics_df.to_string(index=False))

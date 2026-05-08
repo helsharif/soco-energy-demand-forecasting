@@ -18,9 +18,15 @@ from soco_forecasting.data import (
     load_modeling_data,
     validate_leakage_safe_feature_names,
 )
-from soco_forecasting.metrics import regression_metrics
+from soco_forecasting.metrics import metrics_by_forecast_horizon, regression_metrics
 from soco_forecasting.mlflow_utils import log_artifacts, log_split_manifest, setup_mlflow
-from soco_forecasting.plots import actual_vs_predicted, feature_importance_plot, residual_plot, save_plotly_figure
+from soco_forecasting.plots import (
+    actual_vs_predicted,
+    feature_importance_plot,
+    horizon_metric_plot,
+    residual_plot,
+    save_plotly_figure,
+)
 from soco_forecasting.recursive import recursive_backtest_48h_windows
 
 
@@ -48,7 +54,6 @@ def main() -> None:
     x_validation, y_validation = xy(splits.validation, feature_columns, target)
     x_train_validation = pd.concat([x_train, x_validation])
     y_train_validation = pd.concat([y_train, y_validation])
-    x_test, y_test = xy(splits.test, feature_columns, target)
 
     random_state = config["xgboost"]["random_state"]
 
@@ -158,6 +163,16 @@ def main() -> None:
         pred_path = project_path("reports/metrics/xgboost_predictions.csv")
         pred_df.to_csv(pred_path, index=False)
 
+        horizon_metrics_df = metrics_by_forecast_horizon(pred_df)
+        horizon_metrics_path = project_path("reports/metrics/xgboost_horizon_metrics.csv")
+        horizon_metrics_df.to_csv(horizon_metrics_path, index=False)
+        for split_name in ["validation", "test"]:
+            split_horizon_metrics = horizon_metrics_df[horizon_metrics_df["split"] == split_name]
+            for horizon_hour in [1, 24, 48]:
+                row = split_horizon_metrics[split_horizon_metrics["forecast_horizon_hour"] == horizon_hour]
+                if not row.empty:
+                    mlflow.log_metric(f"{split_name}_horizon_{horizon_hour}_rmse", float(row["rmse"].iloc[0]))
+
         trials_path = project_path("reports/metrics/xgboost_optuna_trials.csv")
         study.trials_dataframe().to_csv(trials_path, index=False)
 
@@ -180,11 +195,15 @@ def main() -> None:
         ).values()
         fig_paths += save_plotly_figure(residual_plot(pred_df, "XGBoost Residuals"), "reports/figures/xgboost_residuals").values()
         fig_paths += save_plotly_figure(
+            horizon_metric_plot(horizon_metrics_df, "rmse", "XGBoost RMSE by Forecast Horizon"),
+            "reports/figures/xgboost_rmse_by_horizon",
+        ).values()
+        fig_paths += save_plotly_figure(
             feature_importance_plot(importance_df, "XGBoost Feature Importance"),
             "reports/figures/xgboost_feature_importance",
         ).values()
 
-        log_artifacts([pred_path, trials_path, importance_path, model_path, *fig_paths])
+        log_artifacts([pred_path, horizon_metrics_path, trials_path, importance_path, model_path, *fig_paths])
         print(f"MLflow run_id: {run.info.run_id}")
         print({**validation_metrics, **test_metrics})
 

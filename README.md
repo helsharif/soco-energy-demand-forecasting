@@ -225,6 +225,8 @@ All models are evaluated with the same core metrics:
 
 Plotly is used for modeling, tuning, evaluation, and reporting figures. Important plots are exported to `reports/figures/` and logged to MLflow where useful, including actual vs. predicted demand, residual plots, model comparison charts, and XGBoost feature importance. For recursive 48-hour backtests, actual-vs-predicted and residual figures include dotted vertical markers where the forecast origin resets.
 
+The recursive SARIMAX and XGBoost scripts also save horizon-level metrics, allowing reviewers to see how error changes from forecast hour 1 through forecast hour 48.
+
 The three model families below are intentionally selected to compare a demand-only statistical baseline, a demand-only decomposable time-series model, and a feature-rich machine learning model.
 
 ### 1. SARIMAX Baseline
@@ -260,6 +262,7 @@ The three model families below are intentionally selected to compare a demand-on
 * Weather assumption: Historical weather columns in the modeling dataset serve as forecast weather during backtesting
 * Tuning: Optuna hyperparameter tuning
 * Tracking: MLflow experiment tracking for tuning and final evaluation using `scripts/04_tune_xgboost.py`
+* Artifacts: Prediction table, Optuna trials, feature importance, aggregate metrics, and error-by-horizon diagnostics
 
 ---
 

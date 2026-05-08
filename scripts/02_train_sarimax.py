@@ -12,9 +12,9 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 from soco_forecasting.config import ensure_artifact_dirs, load_config, project_path
 from soco_forecasting.data import create_time_splits, load_modeling_data
-from soco_forecasting.metrics import regression_metrics
+from soco_forecasting.metrics import metrics_by_forecast_horizon, regression_metrics
 from soco_forecasting.mlflow_utils import log_artifacts, log_split_manifest, setup_mlflow
-from soco_forecasting.plots import actual_vs_predicted, residual_plot, save_plotly_figure
+from soco_forecasting.plots import actual_vs_predicted, horizon_metric_plot, residual_plot, save_plotly_figure
 from soco_forecasting.sarimax import recursive_sarimax_48h_windows
 
 
@@ -96,6 +96,16 @@ def main() -> None:
         pred_path = project_path("reports/metrics/sarimax_predictions.csv")
         pred_df.to_csv(pred_path, index=False)
 
+        horizon_metrics_df = metrics_by_forecast_horizon(pred_df)
+        horizon_metrics_path = project_path("reports/metrics/sarimax_horizon_metrics.csv")
+        horizon_metrics_df.to_csv(horizon_metrics_path, index=False)
+        for split_name in ["validation", "test"]:
+            split_horizon_metrics = horizon_metrics_df[horizon_metrics_df["split"] == split_name]
+            for horizon_hour in [1, 24, 48]:
+                row = split_horizon_metrics[split_horizon_metrics["forecast_horizon_hour"] == horizon_hour]
+                if not row.empty:
+                    mlflow.log_metric(f"{split_name}_horizon_{horizon_hour}_rmse", float(row["rmse"].iloc[0]))
+
         fig_paths = []
         fig_paths += save_plotly_figure(
             actual_vs_predicted(pred_df[pred_df["split"] == "validation"], "SARIMAX Validation: Actual vs Predicted"),
@@ -109,11 +119,15 @@ def main() -> None:
             residual_plot(pred_df, "SARIMAX Residuals"),
             "reports/figures/sarimax_residuals",
         ).values()
+        fig_paths += save_plotly_figure(
+            horizon_metric_plot(horizon_metrics_df, "rmse", "SARIMAX RMSE by Forecast Horizon"),
+            "reports/figures/sarimax_rmse_by_horizon",
+        ).values()
 
         model_path = project_path("reports/models/sarimax_results.pkl")
         model_path.parent.mkdir(parents=True, exist_ok=True)
         final_model.save(model_path)
-        log_artifacts([pred_path, model_path, *fig_paths])
+        log_artifacts([pred_path, horizon_metrics_path, model_path, *fig_paths])
 
         print(f"MLflow run_id: {run.info.run_id}")
         print({**validation_metrics, **test_metrics})
