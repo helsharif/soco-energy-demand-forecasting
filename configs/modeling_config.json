@@ -1,0 +1,38 @@
+{
+  "project_name": "soco-energy-demand-forecasting",
+  "mlflow_experiment_name": "soco-energy-demand-forecasting",
+  "dataset_path": "data/soco_modeling_dataset.csv",
+  "target_column": "demand_imputed_pudl_mwh",
+  "datetime_column": "datetime_utc",
+  "local_datetime_column": "datetime_local",
+  "forecast_horizon_hours": 48,
+  "split": {
+    "timezone": "UTC",
+    "train_start": "2015-07-08 06:00:00+00:00",
+    "train_end": "2023-12-31 23:00:00+00:00",
+    "validation_start": "2024-01-01 00:00:00+00:00",
+    "validation_end": "2024-12-31 23:00:00+00:00",
+    "test_start": "2025-01-01 00:00:00+00:00",
+    "test_end": "2026-02-01 06:00:00+00:00"
+  },
+  "sarimax": {
+    "order": [1, 1, 1],
+    "seasonal_order": [1, 1, 1, 24]
+  },
+  "prophet": {
+    "n_trials": 30,
+    "daily_seasonality": true,
+    "weekly_seasonality": true,
+    "yearly_seasonality": false
+  },
+  "xgboost": {
+    "n_trials": 50,
+    "random_state": 42
+  },
+  "artifact_dirs": {
+    "figures": "reports/figures",
+    "metrics": "reports/metrics",
+    "splits": "reports/splits",
+    "models": "reports/models"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "dataset_path": "data/soco_modeling_dataset.csv",
+  "datetime_column": "datetime_utc",
+  "target_column": "demand_imputed_pudl_mwh",
+  "forecast_horizon_hours": 48,
+  "split_policy": "Sequential UTC calendar split; no random sampling.",
+  "leakage_policy": "Training uses observations through train_end only; tuning uses validation only; test is reserved for one final evaluation after model selection.",
+  "splits": {
+    "train": {
+      "name": "train",
+      "n_rows": 74370,
+      "start": "2015-07-08 06:00:00+00:00",
+      "end": "2023-12-31 23:00:00+00:00",
+      "start_index": 0,
+      "end_index": 74369,
+      "target_nulls": 0
+    },
+    "validation": {
+      "name": "validation",
+      "n_rows": 8784,
+      "start": "2024-01-01 00:00:00+00:00",
+      "end": "2024-12-31 23:00:00+00:00",
+      "start_index": 74370,
+      "end_index": 83153,
+      "target_nulls": 0
+    },
+    "test": {
+      "name": "test",
+      "n_rows": 9511,
+      "start": "2025-01-01 00:00:00+00:00",
+      "end": "2026-02-01 06:00:00+00:00",
+      "start_index": 83154,
+      "end_index": 92664,
+      "target_nulls": 0
+    }
+  }
+}
