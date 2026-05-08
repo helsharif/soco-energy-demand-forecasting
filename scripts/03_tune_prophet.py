@@ -134,14 +134,25 @@ def main() -> None:
 
         fig_paths = []
         fig_paths += save_plotly_figure(
-            actual_vs_predicted(pred_df[pred_df["split"] == "validation"], "Prophet Validation: Actual vs Predicted"),
+            actual_vs_predicted(
+                pred_df[pred_df["split"] == "validation"],
+                "Prophet Validation: Actual vs Predicted",
+                show_origin_markers=False,
+            ),
             "reports/figures/prophet_validation_actual_vs_predicted",
         ).values()
         fig_paths += save_plotly_figure(
-            actual_vs_predicted(pred_df[pred_df["split"] == "test"], "Prophet Test: Actual vs Predicted"),
+            actual_vs_predicted(
+                pred_df[pred_df["split"] == "test"],
+                "Prophet Test: Actual vs Predicted",
+                show_origin_markers=False,
+            ),
             "reports/figures/prophet_test_actual_vs_predicted",
         ).values()
-        fig_paths += save_plotly_figure(residual_plot(pred_df, "Prophet Residuals"), "reports/figures/prophet_residuals").values()
+        fig_paths += save_plotly_figure(
+            residual_plot(pred_df, "Prophet Residuals", show_origin_markers=False),
+            "reports/figures/prophet_residuals",
+        ).values()
         fig_paths += save_plotly_figure(
             horizon_metric_plot(horizon_metrics_df, "rmse", "Prophet RMSE by Forecast Horizon"),
             "reports/figures/prophet_rmse_by_horizon",

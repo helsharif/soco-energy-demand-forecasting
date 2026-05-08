@@ -224,7 +224,7 @@ All models are evaluated with the same core metrics:
 * RMSE
 * MAPE
 
-Plotly is used for modeling, tuning, evaluation, and reporting figures. Important plots are exported to `reports/figures/` and logged to MLflow where useful, including actual vs. predicted demand, residual plots, model comparison charts, and XGBoost feature importance. For 48-hour window evaluations, actual-vs-predicted and residual figures include dotted vertical markers where the evaluation origin resets.
+Plotly is used for modeling, tuning, evaluation, and reporting figures. Important plots are exported to `reports/figures/` and logged to MLflow where useful, including actual vs. predicted demand, residual plots, model comparison charts, and XGBoost feature importance. For recursive 48-hour SARIMAX and XGBoost backtests, actual-vs-predicted and residual figures include dotted vertical markers where the forecast origin resets. Prophet uses direct demand-only forecasts, so its main actual-vs-predicted plots omit reset markers and use horizon-metric plots for the 48-hour evaluation view.
 
 The model scripts also save horizon-level metrics, allowing reviewers to see how error changes from forecast hour 1 through forecast hour 48.
 

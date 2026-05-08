@@ -12,7 +12,7 @@ from .config import project_path
 PLOT_TEMPLATE = "plotly_white"
 
 
-def add_forecast_origin_markers(fig: go.Figure, df: pd.DataFrame) -> go.Figure:
+def add_forecast_origin_markers(fig: go.Figure, df: pd.DataFrame, label: str = "Forecast origin reset") -> go.Figure:
     if "forecast_origin" not in df.columns or df.empty:
         return fig
 
@@ -34,7 +34,7 @@ def add_forecast_origin_markers(fig: go.Figure, df: pd.DataFrame) -> go.Figure:
         y=1,
         xref="x",
         yref="paper",
-        text="Forecast origin reset",
+        text=label,
         showarrow=False,
         xanchor="left",
         yanchor="bottom",
@@ -66,11 +66,17 @@ def save_plotly_figure(fig: go.Figure, output_base: str | Path) -> dict[str, str
     return outputs
 
 
-def actual_vs_predicted(df: pd.DataFrame, title: str) -> go.Figure:
+def actual_vs_predicted(
+    df: pd.DataFrame,
+    title: str,
+    show_origin_markers: bool = True,
+    origin_marker_label: str = "Forecast origin reset",
+) -> go.Figure:
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df["datetime_utc"], y=df["actual"], mode="lines", name="Actual"))
     fig.add_trace(go.Scatter(x=df["datetime_utc"], y=df["predicted"], mode="lines", name="Predicted"))
-    add_forecast_origin_markers(fig, df)
+    if show_origin_markers:
+        add_forecast_origin_markers(fig, df, label=origin_marker_label)
     fig.update_layout(
         title=title,
         xaxis_title="Datetime (UTC)",
@@ -81,7 +87,12 @@ def actual_vs_predicted(df: pd.DataFrame, title: str) -> go.Figure:
     return fig
 
 
-def residual_plot(df: pd.DataFrame, title: str) -> go.Figure:
+def residual_plot(
+    df: pd.DataFrame,
+    title: str,
+    show_origin_markers: bool = True,
+    origin_marker_label: str = "Forecast origin reset",
+) -> go.Figure:
     fig = px.scatter(
         df,
         x="datetime_utc",
@@ -92,7 +103,8 @@ def residual_plot(df: pd.DataFrame, title: str) -> go.Figure:
         labels={"datetime_utc": "Datetime (UTC)", "residual": "Residual (MWh)"},
     )
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
-    add_forecast_origin_markers(fig, df)
+    if show_origin_markers:
+        add_forecast_origin_markers(fig, df, label=origin_marker_label)
     return fig
 
 
