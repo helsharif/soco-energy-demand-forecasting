@@ -223,7 +223,7 @@ All models are evaluated with the same core metrics:
 * RMSE
 * MAPE
 
-Plotly is used for modeling, tuning, evaluation, and reporting figures. Important plots are exported to `reports/figures/` and logged to MLflow where useful, including actual vs. predicted demand, residual plots, model comparison charts, and XGBoost feature importance.
+Plotly is used for modeling, tuning, evaluation, and reporting figures. Important plots are exported to `reports/figures/` and logged to MLflow where useful, including actual vs. predicted demand, residual plots, model comparison charts, and XGBoost feature importance. For recursive 48-hour backtests, actual-vs-predicted and residual figures include dotted vertical markers where the forecast origin resets.
 
 The three model families below are intentionally selected to compare a demand-only statistical baseline, a demand-only decomposable time-series model, and a feature-rich machine learning model.
 

@@ -12,6 +12,40 @@ from .config import project_path
 PLOT_TEMPLATE = "plotly_white"
 
 
+def add_forecast_origin_markers(fig: go.Figure, df: pd.DataFrame) -> go.Figure:
+    if "forecast_origin" not in df.columns or df.empty:
+        return fig
+
+    origins = pd.to_datetime(df["forecast_origin"].dropna().unique())
+    if len(origins) == 0:
+        return fig
+
+    first_origin = origins.min()
+    for origin in sorted(origins):
+        fig.add_vline(
+            x=origin,
+            line_width=1,
+            line_dash="dot",
+            line_color="rgba(90, 90, 90, 0.28)",
+        )
+
+    fig.add_annotation(
+        x=first_origin,
+        y=1,
+        xref="x",
+        yref="paper",
+        text="Forecast origin reset",
+        showarrow=False,
+        xanchor="left",
+        yanchor="bottom",
+        font={"size": 11, "color": "rgba(60, 60, 60, 0.85)"},
+        bgcolor="rgba(255, 255, 255, 0.75)",
+        bordercolor="rgba(90, 90, 90, 0.25)",
+        borderwidth=1,
+    )
+    return fig
+
+
 def save_plotly_figure(fig: go.Figure, output_base: str | Path) -> dict[str, str]:
     base = project_path(output_base)
     base.parent.mkdir(parents=True, exist_ok=True)
@@ -36,6 +70,7 @@ def actual_vs_predicted(df: pd.DataFrame, title: str) -> go.Figure:
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df["datetime_utc"], y=df["actual"], mode="lines", name="Actual"))
     fig.add_trace(go.Scatter(x=df["datetime_utc"], y=df["predicted"], mode="lines", name="Predicted"))
+    add_forecast_origin_markers(fig, df)
     fig.update_layout(
         title=title,
         xaxis_title="Datetime (UTC)",
@@ -57,6 +92,7 @@ def residual_plot(df: pd.DataFrame, title: str) -> go.Figure:
         labels={"datetime_utc": "Datetime (UTC)", "residual": "Residual (MWh)"},
     )
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
+    add_forecast_origin_markers(fig, df)
     return fig
 
 
