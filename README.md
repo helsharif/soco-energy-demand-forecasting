@@ -183,6 +183,7 @@ The workflow is designed so future observations do not influence earlier trainin
 * Prophet and XGBoost hyperparameters are selected using validation metrics only.
 * XGBoost uses engineered lag and rolling-window features that represent past demand behavior.
 * During XGBoost validation and test scoring, demand lag and rolling features are recomputed recursively instead of using precomputed validation/test target-derived columns.
+* SARIMAX validation and test scoring use repeated 48-hour forecast windows rather than one long open-loop forecast across the full validation or test period.
 * Feature columns are checked for future-looking names such as `lead`, `future`, `next_`, or `ahead`.
 * SARIMAX and Prophet use the same target series and the same timestamp windows used by XGBoost.
 
@@ -233,6 +234,7 @@ The three model families below are intentionally selected to compare a demand-on
 * Model: `SARIMAX(1,1,1)(1,1,1,24)`
 * Inputs: Demand only
 * Purpose: Statistical baseline for hourly load forecasting
+* Forecast strategy: Recursive 48-hour forecasting windows with the SARIMAX state updated using actual observations after each completed window
 * Tuning: Use already-selected hyperparameters
 * Tracking: Train and evaluate with MLflow using `scripts/02_train_sarimax.py`
 

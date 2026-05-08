@@ -12,9 +12,10 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 from soco_forecasting.config import ensure_artifact_dirs, load_config, project_path
 from soco_forecasting.data import create_time_splits, load_modeling_data
-from soco_forecasting.metrics import prediction_frame, regression_metrics
+from soco_forecasting.metrics import regression_metrics
 from soco_forecasting.mlflow_utils import log_artifacts, log_split_manifest, setup_mlflow
 from soco_forecasting.plots import actual_vs_predicted, residual_plot, save_plotly_figure
+from soco_forecasting.sarimax import recursive_sarimax_48h_windows
 
 
 MODEL_NAME = "SARIMAX"
@@ -31,6 +32,7 @@ def main() -> None:
     dt_col = config["datetime_column"]
     order = tuple(config["sarimax"]["order"])
     seasonal_order = tuple(config["sarimax"]["seasonal_order"])
+    horizon_hours = config["forecast_horizon_hours"]
 
     train_y = splits.train.set_index(dt_col)[target].asfreq("h")
     validation_y = splits.validation.set_index(dt_col)[target].asfreq("h")
@@ -42,6 +44,8 @@ def main() -> None:
         mlflow.log_param("order", order)
         mlflow.log_param("seasonal_order", seasonal_order)
         mlflow.log_param("statsmodels_low_memory", True)
+        mlflow.log_param("forecast_horizon_hours", horizon_hours)
+        mlflow.set_tag("forecast_strategy", "recursive_48h_windows")
         log_split_manifest(splits.manifest)
 
         validation_model = SARIMAX(
@@ -51,8 +55,19 @@ def main() -> None:
             enforce_stationarity=False,
             enforce_invertibility=False,
         ).fit(disp=False, low_memory=True)
-        validation_pred = validation_model.forecast(steps=len(validation_y))
-        validation_metrics = regression_metrics(validation_y.values, validation_pred.values, prefix="validation_")
+        validation_state = validation_model.model.filter(validation_model.params, low_memory=False)
+        validation_pred_df = recursive_sarimax_48h_windows(
+            fitted_results=validation_state,
+            forecast_y=validation_y,
+            horizon_hours=horizon_hours,
+            model_name=MODEL_NAME,
+            split_name="validation",
+        )
+        validation_metrics = regression_metrics(
+            validation_pred_df["actual"].values,
+            validation_pred_df["predicted"].values,
+            prefix="validation_",
+        )
         mlflow.log_metrics(validation_metrics)
 
         final_model = SARIMAX(
@@ -62,16 +77,22 @@ def main() -> None:
             enforce_stationarity=False,
             enforce_invertibility=False,
         ).fit(disp=False, low_memory=True)
-        test_pred = final_model.forecast(steps=len(test_y))
-        test_metrics = regression_metrics(test_y.values, test_pred.values, prefix="test_")
+        final_state = final_model.model.filter(final_model.params, low_memory=False)
+        test_pred_df = recursive_sarimax_48h_windows(
+            fitted_results=final_state,
+            forecast_y=test_y,
+            horizon_hours=horizon_hours,
+            model_name=MODEL_NAME,
+            split_name="test",
+        )
+        test_metrics = regression_metrics(
+            test_pred_df["actual"].values,
+            test_pred_df["predicted"].values,
+            prefix="test_",
+        )
         mlflow.log_metrics(test_metrics)
 
-        pred_df = pd.concat(
-            [
-                prediction_frame(validation_y.index, validation_y.values, validation_pred.values, MODEL_NAME, "validation"),
-                prediction_frame(test_y.index, test_y.values, test_pred.values, MODEL_NAME, "test"),
-            ]
-        )
+        pred_df = pd.concat([validation_pred_df, test_pred_df], ignore_index=True)
         pred_path = project_path("reports/metrics/sarimax_predictions.csv")
         pred_df.to_csv(pred_path, index=False)
 

@@ -17,7 +17,8 @@
   },
   "sarimax": {
     "order": [1, 1, 1],
-    "seasonal_order": [1, 1, 1, 24]
+    "seasonal_order": [1, 1, 1, 24],
+    "forecast_strategy": "recursive_48h_windows"
   },
   "prophet": {
     "n_trials": 30,

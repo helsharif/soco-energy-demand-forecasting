@@ -202,6 +202,11 @@ mlruns/
 mlartifacts/
 mlflow.db
 
+# Generated modeling outputs; split manifests are tracked under reports/splits
+reports/figures/
+reports/metrics/
+reports/models/
+
 # Great Expectations local store
 uncommitted/
 
