@@ -24,7 +24,7 @@
     "n_trials": 30,
     "daily_seasonality": true,
     "weekly_seasonality": true,
-    "yearly_seasonality": false,
+    "yearly_seasonality": true,
     "forecast_strategy": "direct_48h_window_evaluation",
     "tuning_max_windows": 12
   },

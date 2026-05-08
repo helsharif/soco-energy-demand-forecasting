@@ -249,7 +249,7 @@ The three model families below are intentionally selected to compare a demand-on
 
 * Model: Prophet
 * Inputs: Demand only
-* Seasonality: Daily and weekly seasonality
+* Seasonality: Daily, weekly, and yearly seasonality
 * Exogenous variables: Not used
 * Forecast strategy: Direct demand-only forecasts evaluated in 48-hour horizon windows
 * Tuning: Optuna hyperparameter tuning
