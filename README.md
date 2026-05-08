@@ -206,7 +206,13 @@ Each model run logs:
 * Plotly figures and diagnostic artifacts
 * Trained model artifacts where appropriate
 
-Local MLflow runs are stored in `mlruns/`, which is intentionally excluded from Git.
+Local MLflow tracking uses `mlflow.db`, which is intentionally excluded from Git. Run artifacts are written locally by MLflow and are not committed to the repository.
+
+To inspect local runs:
+
+```bash
+conda run -n energy_demand_ml_env001 mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
 
 ### Evaluation Metrics and Visualizations
 

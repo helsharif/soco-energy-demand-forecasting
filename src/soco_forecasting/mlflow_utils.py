@@ -8,7 +8,8 @@ from .config import project_path
 
 
 def setup_mlflow(config: dict) -> None:
-    mlflow.set_tracking_uri(project_path("mlruns").as_uri())
+    mlflow_db_path = project_path("mlflow.db").as_posix()
+    mlflow.set_tracking_uri(f"sqlite:///{mlflow_db_path}")
     mlflow.set_experiment(config["mlflow_experiment_name"])
 
 

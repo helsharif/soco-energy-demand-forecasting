@@ -41,6 +41,7 @@ def main() -> None:
         mlflow.set_tag("model_name", MODEL_NAME)
         mlflow.log_param("order", order)
         mlflow.log_param("seasonal_order", seasonal_order)
+        mlflow.log_param("statsmodels_low_memory", True)
         log_split_manifest(splits.manifest)
 
         validation_model = SARIMAX(
@@ -49,7 +50,7 @@ def main() -> None:
             seasonal_order=seasonal_order,
             enforce_stationarity=False,
             enforce_invertibility=False,
-        ).fit(disp=False)
+        ).fit(disp=False, low_memory=True)
         validation_pred = validation_model.forecast(steps=len(validation_y))
         validation_metrics = regression_metrics(validation_y.values, validation_pred.values, prefix="validation_")
         mlflow.log_metrics(validation_metrics)
@@ -60,7 +61,7 @@ def main() -> None:
             seasonal_order=seasonal_order,
             enforce_stationarity=False,
             enforce_invertibility=False,
-        ).fit(disp=False)
+        ).fit(disp=False, low_memory=True)
         test_pred = final_model.forecast(steps=len(test_y))
         test_metrics = regression_metrics(test_y.values, test_pred.values, prefix="test_")
         mlflow.log_metrics(test_metrics)
