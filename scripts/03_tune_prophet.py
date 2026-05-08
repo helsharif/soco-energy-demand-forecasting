@@ -15,7 +15,7 @@ from soco_forecasting.data import create_time_splits, load_modeling_data
 from soco_forecasting.metrics import metrics_by_forecast_horizon, regression_metrics
 from soco_forecasting.mlflow_utils import log_artifacts, log_split_manifest, setup_mlflow
 from soco_forecasting.plots import actual_vs_predicted, horizon_metric_plot, residual_plot, save_plotly_figure
-from soco_forecasting.prophet_model import recursive_prophet_48h_windows
+from soco_forecasting.prophet_model import direct_prophet_48h_windows
 
 
 MODEL_NAME = "Prophet"
@@ -40,8 +40,8 @@ def main() -> None:
             "holidays_prior_scale": trial.suggest_float("holidays_prior_scale", 0.01, 10.0, log=True),
             "seasonality_mode": trial.suggest_categorical("seasonality_mode", ["additive", "multiplicative"]),
         }
-        pred_df = recursive_prophet_48h_windows(
-            history_df=splits.train,
+        pred_df = direct_prophet_48h_windows(
+            train_df=splits.train,
             forecast_df=splits.validation,
             params=params,
             config=config,
@@ -56,7 +56,7 @@ def main() -> None:
         with mlflow.start_run(run_name=f"prophet_trial_{trial.number}", nested=True):
             mlflow.set_tag("model_name", MODEL_NAME)
             mlflow.set_tag("stage", "tuning")
-            mlflow.set_tag("forecast_strategy", "recursive_48h_refit_windows")
+            mlflow.set_tag("forecast_strategy", "direct_48h_window_evaluation")
             mlflow.log_params(params)
             mlflow.log_param("forecast_horizon_hours", horizon_hours)
             if tuning_max_windows is not None:
@@ -69,7 +69,7 @@ def main() -> None:
         log_split_manifest(splits.manifest)
         mlflow.log_param("n_trials", config["prophet"]["n_trials"])
         mlflow.log_param("forecast_horizon_hours", horizon_hours)
-        mlflow.set_tag("forecast_strategy", "recursive_48h_refit_windows")
+        mlflow.set_tag("forecast_strategy", "direct_48h_window_evaluation")
         if tuning_max_windows is not None:
             mlflow.log_param("tuning_max_windows", tuning_max_windows)
         mlflow.log_param("tuning_metric", "validation_rmse")
@@ -79,8 +79,8 @@ def main() -> None:
         mlflow.log_params({f"best_{k}": v for k, v in study.best_params.items()})
         mlflow.log_metric("best_validation_rmse", float(study.best_value))
 
-        validation_pred_df = recursive_prophet_48h_windows(
-            history_df=splits.train,
+        validation_pred_df = direct_prophet_48h_windows(
+            train_df=splits.train,
             forecast_df=splits.validation,
             params=study.best_params,
             config=config,
@@ -97,8 +97,8 @@ def main() -> None:
         )
         mlflow.log_metrics(validation_metrics)
 
-        test_pred_df = recursive_prophet_48h_windows(
-            history_df=pd.concat([splits.train, splits.validation]),
+        test_pred_df = direct_prophet_48h_windows(
+            train_df=pd.concat([splits.train, splits.validation]),
             forecast_df=splits.test,
             params=study.best_params,
             config=config,

@@ -20,8 +20,8 @@ def build_prophet_model(params: dict, config: dict) -> Prophet:
     )
 
 
-def recursive_prophet_48h_windows(
-    history_df: pd.DataFrame,
+def direct_prophet_48h_windows(
+    train_df: pd.DataFrame,
     forecast_df: pd.DataFrame,
     params: dict,
     config: dict,
@@ -32,36 +32,36 @@ def recursive_prophet_48h_windows(
     split_name: str,
     max_windows: int | None = None,
 ) -> pd.DataFrame:
-    """Forecast a split as repeated 48-hour Prophet windows.
+    """Forecast a split directly, then evaluate in 48-hour windows.
 
-    Prophet does not expose a cheap state update operation like SARIMAX, so each
-    forecast origin refits using the demand history available through that
-    origin. After each completed 48-hour window, actual observations are added
-    to the history before the next origin.
+    Prophet is a demand-only trend/seasonality model, so it can produce direct
+    multi-step forecasts without recursive target-derived features. This helper
+    fits Prophet once on the supplied training history, predicts the requested
+    timestamps, and labels results in 48-hour windows for horizon diagnostics.
     """
 
-    history_base = history_df.sort_values(datetime_col)[[datetime_col, target_col]].copy()
+    train_p = to_prophet_frame(train_df.sort_values(datetime_col), datetime_col, target_col)
     forecast_sorted = forecast_df.sort_values(datetime_col).reset_index(drop=True)
+    if max_windows is not None:
+        forecast_sorted = forecast_sorted.iloc[: max_windows * horizon_hours].copy()
+
+    future = forecast_sorted[[datetime_col]].copy()
+    future[datetime_col] = pd.to_datetime(future[datetime_col]).dt.tz_convert(None)
+    future = future.rename(columns={datetime_col: "ds"})
+
+    model = build_prophet_model(params, config)
+    model.fit(train_p)
+    forecast = model.predict(future)
+
     rows: list[dict] = []
 
-    for window_number, window_start in enumerate(range(0, len(forecast_sorted), horizon_hours), start=1):
-        if max_windows is not None and window_number > max_windows:
-            break
-
+    for window_start in range(0, len(forecast_sorted), horizon_hours):
         window = forecast_sorted.iloc[window_start : window_start + horizon_hours].copy()
+        window_forecast = forecast.iloc[window_start : window_start + len(window)].reset_index(drop=True)
         origin_timestamp = window[datetime_col].iloc[0] - pd.Timedelta(hours=1)
 
-        train_p = to_prophet_frame(history_base, datetime_col, target_col)
-        future = window[[datetime_col]].copy()
-        future[datetime_col] = pd.to_datetime(future[datetime_col]).dt.tz_convert(None)
-        future = future.rename(columns={datetime_col: "ds"})
-
-        model = build_prophet_model(params, config)
-        model.fit(train_p)
-        forecast = model.predict(future)
-
         for horizon_step, (_, row) in enumerate(window.iterrows(), start=1):
-            predicted = float(forecast["yhat"].iloc[horizon_step - 1])
+            predicted = float(window_forecast["yhat"].iloc[horizon_step - 1])
             actual = float(row[target_col])
             rows.append(
                 {
@@ -76,8 +76,5 @@ def recursive_prophet_48h_windows(
                     "forecast_horizon_hour": horizon_step,
                 }
             )
-
-        actual_window = window[[datetime_col, target_col]]
-        history_base = pd.concat([history_base, actual_window], ignore_index=True).sort_values(datetime_col)
 
     return pd.DataFrame(rows)
