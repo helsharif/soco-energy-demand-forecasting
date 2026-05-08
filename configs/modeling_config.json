@@ -24,7 +24,9 @@
     "n_trials": 30,
     "daily_seasonality": true,
     "weekly_seasonality": true,
-    "yearly_seasonality": false
+    "yearly_seasonality": false,
+    "forecast_strategy": "recursive_48h_refit_windows",
+    "tuning_max_windows": 12
   },
   "xgboost": {
     "n_trials": 50,

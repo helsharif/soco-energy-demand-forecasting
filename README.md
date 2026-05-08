@@ -184,6 +184,7 @@ The workflow is designed so future observations do not influence earlier trainin
 * XGBoost uses engineered lag and rolling-window features that represent past demand behavior.
 * During XGBoost validation and test scoring, demand lag and rolling features are recomputed recursively instead of using precomputed validation/test target-derived columns.
 * SARIMAX validation and test scoring use repeated 48-hour forecast windows rather than one long open-loop forecast across the full validation or test period.
+* Prophet validation and test scoring also use repeated 48-hour forecast windows; because Prophet does not have a cheap state update operation, the model is refit at each forecast origin using demand history available up to that origin.
 * Feature columns are checked for future-looking names such as `lead`, `future`, `next_`, or `ahead`.
 * SARIMAX and Prophet use the same target series and the same timestamp windows used by XGBoost.
 
@@ -227,6 +228,8 @@ Plotly is used for modeling, tuning, evaluation, and reporting figures. Importan
 
 The recursive SARIMAX and XGBoost scripts also save horizon-level metrics, allowing reviewers to see how error changes from forecast hour 1 through forecast hour 48.
 
+Prophet tuning is computationally heavier than XGBoost tuning because each trial requires repeated model refits. The config uses `prophet.tuning_max_windows` to tune on validation forecast origins only. Final Prophet validation and test evaluation still use the full validation and test periods. Set `tuning_max_windows` to `null` for full validation-window tuning.
+
 The three model families below are intentionally selected to compare a demand-only statistical baseline, a demand-only decomposable time-series model, and a feature-rich machine learning model.
 
 ### 1. SARIMAX Baseline
@@ -248,8 +251,10 @@ The three model families below are intentionally selected to compare a demand-on
 * Inputs: Demand only
 * Seasonality: Daily and weekly seasonality
 * Exogenous variables: Not used
+* Forecast strategy: Recursive 48-hour forecasting windows with Prophet refit at each forecast origin
 * Tuning: Optuna hyperparameter tuning
 * Tracking: MLflow experiment tracking for tuning and final evaluation using `scripts/03_tune_prophet.py`
+* Artifacts: Prediction table, Optuna trials, aggregate metrics, and error-by-horizon diagnostics
 
 ### 3. XGBoost
 

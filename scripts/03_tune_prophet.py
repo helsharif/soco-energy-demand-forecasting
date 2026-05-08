@@ -9,36 +9,16 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 import mlflow
 import optuna
 import pandas as pd
-from prophet import Prophet
 
 from soco_forecasting.config import ensure_artifact_dirs, load_config, project_path
 from soco_forecasting.data import create_time_splits, load_modeling_data
-from soco_forecasting.metrics import prediction_frame, regression_metrics
+from soco_forecasting.metrics import metrics_by_forecast_horizon, regression_metrics
 from soco_forecasting.mlflow_utils import log_artifacts, log_split_manifest, setup_mlflow
-from soco_forecasting.plots import actual_vs_predicted, residual_plot, save_plotly_figure
+from soco_forecasting.plots import actual_vs_predicted, horizon_metric_plot, residual_plot, save_plotly_figure
+from soco_forecasting.prophet_model import recursive_prophet_48h_windows
 
 
 MODEL_NAME = "Prophet"
-
-
-def to_prophet_frame(df: pd.DataFrame, dt_col: str, target: str) -> pd.DataFrame:
-    out = df[[dt_col, target]].copy()
-    out[dt_col] = pd.to_datetime(out[dt_col]).dt.tz_convert(None)
-    out = out.rename(columns={dt_col: "ds", target: "y"})
-    return out
-
-
-def fit_predict(train_df: pd.DataFrame, predict_df: pd.DataFrame, params: dict, config: dict) -> pd.Series:
-    model = Prophet(
-        daily_seasonality=config["prophet"]["daily_seasonality"],
-        weekly_seasonality=config["prophet"]["weekly_seasonality"],
-        yearly_seasonality=config["prophet"]["yearly_seasonality"],
-        **params,
-    )
-    model.fit(train_df)
-    future = predict_df[["ds"]].copy()
-    forecast = model.predict(future)
-    return forecast["yhat"]
 
 
 def main() -> None:
@@ -50,11 +30,8 @@ def main() -> None:
     splits = create_time_splits(df, config)
     target = config["target_column"]
     dt_col = config["datetime_column"]
-
-    train_p = to_prophet_frame(splits.train, dt_col, target)
-    validation_p = to_prophet_frame(splits.validation, dt_col, target)
-    train_validation_p = pd.concat([train_p, validation_p], ignore_index=True)
-    test_p = to_prophet_frame(splits.test, dt_col, target)
+    horizon_hours = config["forecast_horizon_hours"]
+    tuning_max_windows = config["prophet"].get("tuning_max_windows")
 
     def objective(trial: optuna.Trial) -> float:
         params = {
@@ -63,12 +40,27 @@ def main() -> None:
             "holidays_prior_scale": trial.suggest_float("holidays_prior_scale", 0.01, 10.0, log=True),
             "seasonality_mode": trial.suggest_categorical("seasonality_mode", ["additive", "multiplicative"]),
         }
-        yhat = fit_predict(train_p, validation_p, params, config)
-        metrics = regression_metrics(validation_p["y"].values, yhat.values)
+        pred_df = recursive_prophet_48h_windows(
+            history_df=splits.train,
+            forecast_df=splits.validation,
+            params=params,
+            config=config,
+            target_col=target,
+            datetime_col=dt_col,
+            horizon_hours=horizon_hours,
+            model_name=MODEL_NAME,
+            split_name="validation",
+            max_windows=tuning_max_windows,
+        )
+        metrics = regression_metrics(pred_df["actual"].values, pred_df["predicted"].values)
         with mlflow.start_run(run_name=f"prophet_trial_{trial.number}", nested=True):
             mlflow.set_tag("model_name", MODEL_NAME)
             mlflow.set_tag("stage", "tuning")
+            mlflow.set_tag("forecast_strategy", "recursive_48h_refit_windows")
             mlflow.log_params(params)
+            mlflow.log_param("forecast_horizon_hours", horizon_hours)
+            if tuning_max_windows is not None:
+                mlflow.log_param("tuning_max_windows", tuning_max_windows)
             mlflow.log_metrics({f"validation_{k}": v for k, v in metrics.items()})
         return metrics["rmse"]
 
@@ -76,6 +68,10 @@ def main() -> None:
         mlflow.set_tag("model_name", MODEL_NAME)
         log_split_manifest(splits.manifest)
         mlflow.log_param("n_trials", config["prophet"]["n_trials"])
+        mlflow.log_param("forecast_horizon_hours", horizon_hours)
+        mlflow.set_tag("forecast_strategy", "recursive_48h_refit_windows")
+        if tuning_max_windows is not None:
+            mlflow.log_param("tuning_max_windows", tuning_max_windows)
         mlflow.log_param("tuning_metric", "validation_rmse")
 
         study = optuna.create_study(direction="minimize", study_name="prophet_validation_rmse")
@@ -83,22 +79,55 @@ def main() -> None:
         mlflow.log_params({f"best_{k}": v for k, v in study.best_params.items()})
         mlflow.log_metric("best_validation_rmse", float(study.best_value))
 
-        validation_pred = fit_predict(train_p, validation_p, study.best_params, config)
-        validation_metrics = regression_metrics(validation_p["y"].values, validation_pred.values, prefix="validation_")
+        validation_pred_df = recursive_prophet_48h_windows(
+            history_df=splits.train,
+            forecast_df=splits.validation,
+            params=study.best_params,
+            config=config,
+            target_col=target,
+            datetime_col=dt_col,
+            horizon_hours=horizon_hours,
+            model_name=MODEL_NAME,
+            split_name="validation",
+        )
+        validation_metrics = regression_metrics(
+            validation_pred_df["actual"].values,
+            validation_pred_df["predicted"].values,
+            prefix="validation_",
+        )
         mlflow.log_metrics(validation_metrics)
 
-        test_pred = fit_predict(train_validation_p, test_p, study.best_params, config)
-        test_metrics = regression_metrics(test_p["y"].values, test_pred.values, prefix="test_")
+        test_pred_df = recursive_prophet_48h_windows(
+            history_df=pd.concat([splits.train, splits.validation]),
+            forecast_df=splits.test,
+            params=study.best_params,
+            config=config,
+            target_col=target,
+            datetime_col=dt_col,
+            horizon_hours=horizon_hours,
+            model_name=MODEL_NAME,
+            split_name="test",
+        )
+        test_metrics = regression_metrics(
+            test_pred_df["actual"].values,
+            test_pred_df["predicted"].values,
+            prefix="test_",
+        )
         mlflow.log_metrics(test_metrics)
 
-        pred_df = pd.concat(
-            [
-                prediction_frame(splits.validation[dt_col], validation_p["y"], validation_pred, MODEL_NAME, "validation"),
-                prediction_frame(splits.test[dt_col], test_p["y"], test_pred, MODEL_NAME, "test"),
-            ]
-        )
+        pred_df = pd.concat([validation_pred_df, test_pred_df], ignore_index=True)
         pred_path = project_path("reports/metrics/prophet_predictions.csv")
         pred_df.to_csv(pred_path, index=False)
+
+        horizon_metrics_df = metrics_by_forecast_horizon(pred_df)
+        horizon_metrics_path = project_path("reports/metrics/prophet_horizon_metrics.csv")
+        horizon_metrics_df.to_csv(horizon_metrics_path, index=False)
+        for split_name in ["validation", "test"]:
+            split_horizon_metrics = horizon_metrics_df[horizon_metrics_df["split"] == split_name]
+            for horizon_hour in [1, 24, 48]:
+                row = split_horizon_metrics[split_horizon_metrics["forecast_horizon_hour"] == horizon_hour]
+                if not row.empty:
+                    mlflow.log_metric(f"{split_name}_horizon_{horizon_hour}_rmse", float(row["rmse"].iloc[0]))
 
         trials_path = project_path("reports/metrics/prophet_optuna_trials.csv")
         study.trials_dataframe().to_csv(trials_path, index=False)
@@ -113,8 +142,12 @@ def main() -> None:
             "reports/figures/prophet_test_actual_vs_predicted",
         ).values()
         fig_paths += save_plotly_figure(residual_plot(pred_df, "Prophet Residuals"), "reports/figures/prophet_residuals").values()
+        fig_paths += save_plotly_figure(
+            horizon_metric_plot(horizon_metrics_df, "rmse", "Prophet RMSE by Forecast Horizon"),
+            "reports/figures/prophet_rmse_by_horizon",
+        ).values()
 
-        log_artifacts([pred_path, trials_path, *fig_paths])
+        log_artifacts([pred_path, horizon_metrics_path, trials_path, *fig_paths])
         print(f"MLflow run_id: {run.info.run_id}")
         print({**validation_metrics, **test_metrics})
 
