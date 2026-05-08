@@ -87,7 +87,7 @@ Local dataset:
 data/soco_modeling_dataset.csv
 ```
 
-The modeling dataset is intentionally excluded from GitHub because it is large. It can be reproduced by running the data preparation notebooks in order. The lightweight data dictionary is tracked in this repository:
+The modeling dataset is tracked with Git LFS because it is larger than standard GitHub-friendly source files. It can also be reproduced by running the data preparation notebooks in order. The data dictionary is tracked in this repository:
 
 ```text
 data/soco_modeling_data_dictionary.csv
@@ -204,6 +204,9 @@ In progress / planned:
 ├── app/
 │   └── Streamlit application files planned for a later portfolio demo
 ├── data/
+│   ├── soco_hourly_operations.csv
+│   ├── soco_region_hourly_weather.csv
+│   ├── soco_modeling_dataset.csv
 │   ├── soco_modeling_data_dictionary.csv
 │   └── soco_modeling_data_dictionary.md
 ├── figures/
@@ -222,14 +225,15 @@ In progress / planned:
 └── README.md
 ```
 
-Large local data files are excluded from version control:
+CSV data files are tracked with Git LFS:
 
 ```text
-data/eia930_hourly_operations.parquet
 data/soco_hourly_operations.csv
 data/soco_region_hourly_weather.csv
 data/soco_modeling_dataset.csv
 ```
+
+Parquet and ZIP files are kept local and are not uploaded to GitHub.
 
 ---
 
@@ -340,4 +344,3 @@ This project is for research, learning, and portfolio demonstration purposes onl
 
 **Husayn El Sharif**  
 Senior Data Scientist / Machine Learning Engineer
-
