@@ -182,10 +182,11 @@ The workflow is designed so future observations do not influence earlier trainin
 * The test set is reserved for final evaluation after model selection.
 * Prophet and XGBoost hyperparameters are selected using validation metrics only.
 * XGBoost uses engineered lag and rolling-window features that represent past demand behavior.
+* During XGBoost validation and test scoring, demand lag and rolling features are recomputed recursively instead of using precomputed validation/test target-derived columns.
 * Feature columns are checked for future-looking names such as `lead`, `future`, `next_`, or `ahead`.
 * SARIMAX and Prophet use the same target series and the same timestamp windows used by XGBoost.
 
-For operational 48-hour forecasting, future weather values should come from weather forecasts rather than realized future observations. In this portfolio workflow, historical weather is used for backtesting and model comparison.
+For operational 48-hour forecasting, future weather values should come from weather forecasts rather than realized future observations. In this portfolio workflow, historical weather rows in `data/soco_modeling_dataset.csv` are used as the stand-in forecast weather during backtesting and model comparison.
 
 ### MLflow Tracking
 
@@ -246,6 +247,9 @@ The three model families below are intentionally selected to compare a demand-on
 
 * Model: XGBoost regression workflow
 * Inputs: Engineered lag, rolling-window, calendar, and weather features
+* Forecast strategy: Recursive 48-hour forecasting windows
+* Recursive feature handling: Within each 48-hour window, demand lag and rolling features use prior actual demand before the forecast origin and prior predicted demand inside the window
+* Weather assumption: Historical weather columns in the modeling dataset serve as forecast weather during backtesting
 * Tuning: Optuna hyperparameter tuning
 * Tracking: MLflow experiment tracking for tuning and final evaluation using `scripts/04_tune_xgboost.py`
 

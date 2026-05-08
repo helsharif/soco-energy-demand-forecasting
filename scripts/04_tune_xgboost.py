@@ -18,9 +18,10 @@ from soco_forecasting.data import (
     load_modeling_data,
     validate_leakage_safe_feature_names,
 )
-from soco_forecasting.metrics import prediction_frame, regression_metrics
+from soco_forecasting.metrics import regression_metrics
 from soco_forecasting.mlflow_utils import log_artifacts, log_split_manifest, setup_mlflow
 from soco_forecasting.plots import actual_vs_predicted, feature_importance_plot, residual_plot, save_plotly_figure
+from soco_forecasting.recursive import recursive_backtest_48h_windows
 
 
 MODEL_NAME = "XGBoost"
@@ -41,6 +42,7 @@ def main() -> None:
     dt_col = config["datetime_column"]
     feature_columns = get_feature_columns(df, config)
     validate_leakage_safe_feature_names(feature_columns)
+    horizon_hours = config["forecast_horizon_hours"]
 
     x_train, y_train = xy(splits.train, feature_columns, target)
     x_validation, y_validation = xy(splits.validation, feature_columns, target)
@@ -69,11 +71,22 @@ def main() -> None:
             **params,
         )
         model.fit(x_train, y_train)
-        pred = model.predict(x_validation)
-        metrics = regression_metrics(y_validation.values, pred)
+        pred_df = recursive_backtest_48h_windows(
+            model=model,
+            history_df=splits.train,
+            forecast_df=splits.validation,
+            feature_columns=feature_columns,
+            target_col=target,
+            datetime_col=dt_col,
+            horizon_hours=horizon_hours,
+            model_name=MODEL_NAME,
+            split_name="validation",
+        )
+        metrics = regression_metrics(pred_df["actual"].values, pred_df["predicted"].values)
         with mlflow.start_run(run_name=f"xgboost_trial_{trial.number}", nested=True):
             mlflow.set_tag("model_name", MODEL_NAME)
             mlflow.set_tag("stage", "tuning")
+            mlflow.set_tag("forecast_strategy", "recursive_48h_windows")
             mlflow.log_params(params)
             mlflow.log_metrics({f"validation_{k}": v for k, v in metrics.items()})
         return metrics["rmse"]
@@ -83,6 +96,9 @@ def main() -> None:
         log_split_manifest(splits.manifest)
         mlflow.log_param("n_trials", config["xgboost"]["n_trials"])
         mlflow.log_param("n_features", len(feature_columns))
+        mlflow.log_param("forecast_horizon_hours", horizon_hours)
+        mlflow.set_tag("forecast_strategy", "recursive_48h_windows")
+        mlflow.set_tag("future_weather_policy", "historical weather rows used as forecast weather for backtesting")
         mlflow.log_param("tuning_metric", "validation_rmse")
 
         study = optuna.create_study(direction="minimize", study_name="xgboost_validation_rmse")
@@ -98,8 +114,22 @@ def main() -> None:
             **study.best_params,
         )
         validation_model.fit(x_train, y_train)
-        validation_pred = validation_model.predict(x_validation)
-        validation_metrics = regression_metrics(y_validation.values, validation_pred, prefix="validation_")
+        validation_pred_df = recursive_backtest_48h_windows(
+            model=validation_model,
+            history_df=splits.train,
+            forecast_df=splits.validation,
+            feature_columns=feature_columns,
+            target_col=target,
+            datetime_col=dt_col,
+            horizon_hours=horizon_hours,
+            model_name=MODEL_NAME,
+            split_name="validation",
+        )
+        validation_metrics = regression_metrics(
+            validation_pred_df["actual"].values,
+            validation_pred_df["predicted"].values,
+            prefix="validation_",
+        )
         mlflow.log_metrics(validation_metrics)
 
         final_model = XGBRegressor(
@@ -110,16 +140,21 @@ def main() -> None:
             **study.best_params,
         )
         final_model.fit(x_train_validation, y_train_validation)
-        test_pred = final_model.predict(x_test)
-        test_metrics = regression_metrics(y_test.values, test_pred, prefix="test_")
+        test_pred_df = recursive_backtest_48h_windows(
+            model=final_model,
+            history_df=pd.concat([splits.train, splits.validation]),
+            forecast_df=splits.test,
+            feature_columns=feature_columns,
+            target_col=target,
+            datetime_col=dt_col,
+            horizon_hours=horizon_hours,
+            model_name=MODEL_NAME,
+            split_name="test",
+        )
+        test_metrics = regression_metrics(test_pred_df["actual"].values, test_pred_df["predicted"].values, prefix="test_")
         mlflow.log_metrics(test_metrics)
 
-        pred_df = pd.concat(
-            [
-                prediction_frame(splits.validation[dt_col], y_validation, validation_pred, MODEL_NAME, "validation"),
-                prediction_frame(splits.test[dt_col], y_test, test_pred, MODEL_NAME, "test"),
-            ]
-        )
+        pred_df = pd.concat([validation_pred_df, test_pred_df], ignore_index=True)
         pred_path = project_path("reports/metrics/xgboost_predictions.csv")
         pred_df.to_csv(pred_path, index=False)
 
