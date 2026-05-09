@@ -39,6 +39,7 @@ def main() -> None:
             "seasonality_prior_scale": trial.suggest_float("seasonality_prior_scale", 0.01, 10.0, log=True),
             "holidays_prior_scale": trial.suggest_float("holidays_prior_scale", 0.01, 10.0, log=True),
             "seasonality_mode": trial.suggest_categorical("seasonality_mode", ["additive", "multiplicative"]),
+            "yearly_fourier_order": trial.suggest_int("yearly_fourier_order", 5, 25),
         }
         pred_df = direct_prophet_48h_windows(
             train_df=splits.train,
@@ -59,6 +60,7 @@ def main() -> None:
             mlflow.set_tag("forecast_strategy", "direct_48h_window_evaluation")
             mlflow.log_params(params)
             mlflow.log_param("forecast_horizon_hours", horizon_hours)
+            mlflow.log_param("country_holidays", config["prophet"].get("country_holidays", "none"))
             if tuning_max_windows is not None:
                 mlflow.log_param("tuning_max_windows", tuning_max_windows)
             mlflow.log_metrics({f"validation_{k}": v for k, v in metrics.items()})
@@ -69,6 +71,7 @@ def main() -> None:
         log_split_manifest(splits.manifest)
         mlflow.log_param("n_trials", config["prophet"]["n_trials"])
         mlflow.log_param("forecast_horizon_hours", horizon_hours)
+        mlflow.log_param("country_holidays", config["prophet"].get("country_holidays", "none"))
         mlflow.set_tag("forecast_strategy", "direct_48h_window_evaluation")
         if tuning_max_windows is not None:
             mlflow.log_param("tuning_max_windows", tuning_max_windows)

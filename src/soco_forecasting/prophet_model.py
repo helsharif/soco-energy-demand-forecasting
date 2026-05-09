@@ -12,12 +12,22 @@ def to_prophet_frame(df: pd.DataFrame, datetime_col: str, target_col: str) -> pd
 
 
 def build_prophet_model(params: dict, config: dict) -> Prophet:
-    return Prophet(
+    params = params.copy()
+    yearly_fourier_order = params.pop("yearly_fourier_order", None)
+    yearly_seasonality = config["prophet"]["yearly_seasonality"]
+    if yearly_fourier_order is not None and yearly_seasonality:
+        yearly_seasonality = int(yearly_fourier_order)
+
+    model = Prophet(
         daily_seasonality=config["prophet"]["daily_seasonality"],
         weekly_seasonality=config["prophet"]["weekly_seasonality"],
-        yearly_seasonality=config["prophet"]["yearly_seasonality"],
+        yearly_seasonality=yearly_seasonality,
         **params,
     )
+    country_holidays = config["prophet"].get("country_holidays")
+    if country_holidays:
+        model.add_country_holidays(country_name=country_holidays)
+    return model
 
 
 def direct_prophet_48h_windows(

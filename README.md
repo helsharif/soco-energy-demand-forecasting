@@ -228,7 +228,7 @@ Plotly is used for modeling, tuning, evaluation, and reporting figures. Importan
 
 The model scripts also save horizon-level metrics, allowing reviewers to see how error changes from forecast hour 1 through forecast hour 48.
 
-Prophet tuning can optionally use `prophet.tuning_max_windows` to tune on an early subset of validation forecast windows for faster iteration. Final Prophet validation and test evaluation still use the full validation and test periods. Set `tuning_max_windows` to `null` for full validation-period tuning.
+Prophet tuning uses the full validation period by default. For faster experimentation, `prophet.tuning_max_windows` can optionally limit tuning to an early subset of validation forecast windows, but the committed configuration leaves it as `null`.
 
 The three model families below are intentionally selected to compare a demand-only statistical baseline, a demand-only decomposable time-series model, and a feature-rich machine learning model.
 
@@ -250,9 +250,10 @@ The three model families below are intentionally selected to compare a demand-on
 * Model: Prophet
 * Inputs: Demand only
 * Seasonality: Daily, weekly, and yearly seasonality
+* Holidays: U.S. holidays and observed holidays through Prophet's country holiday calendar
 * Exogenous variables: Not used
 * Forecast strategy: Direct demand-only forecasts evaluated in 48-hour horizon windows
-* Tuning: Optuna hyperparameter tuning
+* Tuning: Optuna hyperparameter tuning, including yearly seasonality Fourier order
 * Tracking: MLflow experiment tracking for tuning and final evaluation using `scripts/03_tune_prophet.py`
 * Artifacts: Prediction table, Optuna trials, aggregate metrics, and error-by-horizon diagnostics
 

@@ -25,8 +25,9 @@
     "daily_seasonality": true,
     "weekly_seasonality": true,
     "yearly_seasonality": true,
+    "country_holidays": "US",
     "forecast_strategy": "direct_48h_window_evaluation",
-    "tuning_max_windows": 12
+    "tuning_max_windows": null
   },
   "xgboost": {
     "n_trials": 50,
