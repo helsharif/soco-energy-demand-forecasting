@@ -317,7 +317,9 @@ The table below reports final test-set performance for the 48-hour forecasting c
 
 The XGBoost models substantially outperformed the demand-only SARIMAX baseline and the Prophet model on the held-out test period. This is consistent with the short-term load forecasting problem: recent demand lags, rolling statistics, calendar effects, weather variables, and degree-hour features provide strong information about the next 48 hourly demand values. Prophet improved over SARIMAX, likely because it captured smoother seasonal structure and targeted weather-driven effects, but it remained less flexible than gradient boosting for nonlinear demand persistence and weather interactions.
 
-The pruned top-50 XGBoost model slightly outperformed the full-feature XGBoost model across RMSE, MAE, and MAPE. The difference is small, but it suggests that the most informative lag, calendar, and weather-derived features captured nearly all of the predictive signal while reducing feature noise. For a portfolio or deployment-oriented version of this workflow, the pruned model is a strong candidate because it preserves accuracy while offering a simpler, more interpretable feature set.
+![Top 20 SHAP features for the pruned XGBoost top-50 model](figures/soco_xgboost_pruned_top_20_shap_features.png)
+
+The pruned top-50 XGBoost model slightly outperformed the full-feature XGBoost model across RMSE, MAE, and MAPE. The difference is small, but it suggests that the most informative lag, calendar, and weather-derived features captured nearly all of the predictive signal while reducing feature noise. The SHAP summary for the pruned XGBoost run reinforces this interpretation: recent demand history is the dominant signal, with demand lags and short rolling demand statistics ranked highly, while calendar timing and weather/degree-hour features provide additional context for demand shape and peak behavior. For a portfolio or deployment-oriented version of this workflow, the pruned model is a strong candidate because it preserves accuracy while offering a simpler, more interpretable feature set.
 
 ---
 
