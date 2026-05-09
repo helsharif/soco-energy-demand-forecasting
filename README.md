@@ -1,5 +1,7 @@
 # SOCO Energy Demand Forecasting
 
+![SOCO 48-Hour Energy Demand Forecasting project hero image](<figures/SOCO Forecasting Project Hero Image.png>)
+
 **Short-term electricity demand forecasting project for the Southern Company (SOCO) balancing authority.** This project builds a clean, portfolio-ready workflow for forecasting the full hourly demand trajectory over the next 48 hours using historical electricity demand, calendar features, lagged demand behavior, rolling-window statistics, and regional weather data.
 
 The repository is currently focused on data preparation, exploratory analysis, and feature engineering. Model training and experiment tracking are planned as the next stage.
