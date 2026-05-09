@@ -15,6 +15,11 @@ PROJECT_ROOT = APP_DIR.parent
 DATA_DIR = PROJECT_ROOT / "app_data" / "model_results"
 LOCAL_TIMEZONE = "America/New_York"
 LOCAL_TIME_LABEL = "US Eastern"
+DAILY_TIME_FORMAT = "%b %d, %Y"
+HOURLY_TIME_FORMAT = "%b %d, %Y %I:%M %p"
+DAILY_TICK_FORMAT = "%b %d<br>%Y"
+HOURLY_TICK_FORMAT = "%b %d<br>%I:%M %p"
+SLIDER_TIME_FORMAT = "MMM DD, YYYY"
 
 MODEL_ORDER = ["sarimax", "prophet", "xgboost_full", "xgboost_pruned_top50"]
 MODEL_LABELS = {
@@ -430,12 +435,21 @@ def polish_figure(fig: go.Figure, height: int) -> go.Figure:
     return fig
 
 
+def display_time_format(granularity: str) -> str:
+    return DAILY_TIME_FORMAT if granularity == "Daily" else HOURLY_TIME_FORMAT
+
+
+def tick_time_format(granularity: str) -> str:
+    return DAILY_TICK_FORMAT if granularity == "Daily" else HOURLY_TICK_FORMAT
+
+
 def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granularity: str) -> go.Figure:
     fig = go.Figure()
     if df.empty:
         fig.update_layout(title="Actual vs Predicted Demand")
         return polish_figure(fig, height=900)
 
+    hover_time_format = display_time_format(granularity)
     actual_df = df.groupby("timestamp", as_index=False).agg(actual=("actual", "mean")).sort_values("timestamp")
     fig.add_trace(
         go.Scatter(
@@ -444,7 +458,7 @@ def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granu
             mode="lines",
             name="Actual Demand",
             line=dict(color=ACTUAL_COLOR, width=ACTUAL_TRACE_WIDTH),
-            hovertemplate=f"{LOCAL_TIME_LABEL}: " + "%{x}<br>Actual demand: %{y:,.0f} MWh<extra>Actual</extra>",
+            hovertemplate=f"{LOCAL_TIME_LABEL}: " + "%{x|" + hover_time_format + "}<br>Actual demand: %{y:,.0f} MWh<extra>Actual</extra>",
         )
     )
     for label in selected_labels:
@@ -461,7 +475,7 @@ def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granu
                 opacity=MODEL_TRACE_OPACITY,
                 customdata=np.stack([model_df["actual"], model_df["residual"]], axis=-1),
                 hovertemplate=(
-                    f"{LOCAL_TIME_LABEL}: " + "%{x}<br>"
+                    f"{LOCAL_TIME_LABEL}: " + "%{x|" + hover_time_format + "}<br>"
                     "Model: " + label + "<br>"
                     "Actual demand: %{customdata[0]:,.0f} MWh<br>"
                     "Predicted demand: %{y:,.0f} MWh<br>"
@@ -476,11 +490,13 @@ def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granu
         hovermode="x unified",
         legend_title_text="Series",
     )
+    fig.update_xaxes(tickformat=tick_time_format(granularity))
     return polish_figure(fig, height=900)
 
 
-def residual_plot(df: pd.DataFrame, selected_labels: list[str]) -> go.Figure:
+def residual_plot(df: pd.DataFrame, selected_labels: list[str], granularity: str) -> go.Figure:
     fig = go.Figure()
+    hover_time_format = display_time_format(granularity)
     for label in selected_labels:
         model_df = df[df["model_name"] == label].sort_values("timestamp")
         if model_df.empty:
@@ -492,7 +508,7 @@ def residual_plot(df: pd.DataFrame, selected_labels: list[str]) -> go.Figure:
                 mode="markers",
                 name=label,
                 marker=dict(color=MODEL_COLORS[label], size=5, opacity=MODEL_TRACE_OPACITY),
-                hovertemplate=f"{LOCAL_TIME_LABEL}: " + "%{x}<br>Model: " + label + "<br>Residual: %{y:,.0f} MWh<extra></extra>",
+                hovertemplate=f"{LOCAL_TIME_LABEL}: " + "%{x|" + hover_time_format + "}<br>Model: " + label + "<br>Residual: %{y:,.0f} MWh<extra></extra>",
             )
         )
     fig.add_hline(y=0, line_dash="dash", line_color="#374151")
@@ -501,6 +517,7 @@ def residual_plot(df: pd.DataFrame, selected_labels: list[str]) -> go.Figure:
         xaxis_title=f"Date ({LOCAL_TIME_LABEL})",
         yaxis_title="Actual - Predicted (MWh)",
     )
+    fig.update_xaxes(tickformat=tick_time_format(granularity))
     return polish_figure(fig, height=650)
 
 
@@ -651,6 +668,7 @@ with st.sidebar:
             min_value=min_date.to_pydatetime(),
             max_value=max_date.to_pydatetime(),
             value=(min_date.to_pydatetime(), max_date.to_pydatetime()),
+            format=SLIDER_TIME_FORMAT,
         )
         start_ts = pd.Timestamp(start)
         end_ts = pd.Timestamp(end)
@@ -688,7 +706,7 @@ if page == "Results Dashboard":
     if filtered_combined.empty:
         st.info("Residual data are not available for the current selection.")
     else:
-        st.plotly_chart(residual_plot(filtered_combined, selected_labels), width="stretch")
+        st.plotly_chart(residual_plot(filtered_combined, selected_labels, granularity), width="stretch")
 
     st.subheader("Error by Forecast Horizon")
     st.caption("This chart uses the full selected validation/test split, not the displayed date range. Forecast error often grows with horizon; unrealistically flat or very low horizon error can be a leakage warning.")
