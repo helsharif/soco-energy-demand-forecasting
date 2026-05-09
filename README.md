@@ -4,7 +4,7 @@
 
 **Short-term electricity demand forecasting project for the Southern Company (SOCO) balancing authority.** This project builds a clean, portfolio-ready workflow for forecasting the full hourly demand trajectory over the next 48 hours using historical electricity demand, calendar features, lagged demand behavior, rolling-window statistics, and regional weather data.
 
-The repository is currently focused on data preparation, exploratory analysis, and feature engineering. Model training and experiment tracking are planned as the next stage.
+The project is complete as a portfolio-ready forecasting workflow: data preparation, feature engineering, time-aware modeling, MLflow experiment tracking, XGBoost interpretability, leakage checks, static result exports, and a deployed Streamlit results dashboard are all included.
 
 ---
 
@@ -16,7 +16,7 @@ The repository is currently focused on data preparation, exploratory analysis, a
 * **Balancing authority:** Southern Company (SOCO)
 * **Data:** Hourly demand from PUDL/EIA-930 plus regional hourly weather observations
 * **Methods:** Time-series feature engineering, statistical forecasting, additive forecasting, gradient boosting
-* **Tracking plan:** MLflow experiment tracking for all model families
+* **Tracking:** MLflow experiment tracking for all model families
 
 This project is designed to demonstrate a practical forecasting workflow that connects utility-domain data preparation with reproducible machine learning experimentation.
 
@@ -245,7 +245,7 @@ The three model families below are intentionally selected to compare a demand-on
 
 ### 1. SARIMAX Baseline
 
-**Status:** Planned / in progress
+**Status:** Complete
 
 * Model: `SARIMAX(1,1,1)(1,1,1,24)`
 * Inputs: Demand only
@@ -256,7 +256,7 @@ The three model families below are intentionally selected to compare a demand-on
 
 ### 2. Prophet
 
-**Status:** Planned / in progress
+**Status:** Complete
 
 * Model: Prophet
 * Inputs: Demand plus three targeted weather-driven regressors
@@ -270,7 +270,7 @@ The three model families below are intentionally selected to compare a demand-on
 
 ### 3. XGBoost
 
-**Status:** Planned / in progress
+**Status:** Complete
 
 * Model: XGBoost regression workflow
 * Inputs: Full valid numeric engineered feature set
@@ -290,7 +290,7 @@ SHAP helps identify whether the final XGBoost model relies most on lagged demand
 
 ### 4. XGBoost Pruned Top-50 Ablation
 
-**Status:** Experimental / optional
+**Status:** Complete ablation experiment
 
 The pruned XGBoost experiment is a model-simplification ablation. It selects the top 50 leakage-safe features from the full XGBoost feature-importance results, preferring `reports/shap/xgboost/shap_top_features.csv`, then tunes and evaluates a separate XGBoost model with the same time-aware split and recursive 48-hour evaluation. The full XGBoost workflow remains the default unless the pruned model achieves comparable validation/test and horizon-level performance.
 
@@ -306,6 +306,8 @@ Outputs include `reports/xgboost_pruned_comparison.csv`, `reports/xgboost_pruned
 
 ## Current Project Status
 
+This project is complete and portfolio-ready. The repository now includes the full end-to-end workflow from raw data preparation through deployed model-result visualization.
+
 Completed:
 
 * SOCO hourly demand extraction and cleaning workflow
@@ -317,14 +319,16 @@ Completed:
 * Data dictionary for the modeling dataset
 * Shared time-aware train/validation/test split configuration
 * Reusable modeling scripts for SARIMAX, Prophet, XGBoost, and model comparison
-
-In progress / planned:
-
 * SARIMAX baseline training and evaluation
 * Prophet tuning, training, and evaluation
 * XGBoost tuning, training, and evaluation
+* Pruned top-50 XGBoost ablation experiment
+* SHAP-based XGBoost interpretability artifacts
+* Leakage audit controls for recursive XGBoost forecasting
 * Forecast comparison over the 48-hour horizon
-* Portfolio summary of model results and final recommendations
+* Static dashboard-ready model result exports
+* Responsive Streamlit dashboard deployed on Streamlit Community Cloud
+* Portfolio README with project visuals, reproduction instructions, and deployment guidance
 
 ---
 
@@ -558,14 +562,6 @@ figures/*.png
 
 The modeling workflow is implemented as scripts so it can be rerun consistently and extended with additional models later.
 
----
-
-## Planned Next Steps
-
-* Refresh static dashboard exports when new MLflow runs are promoted
-* Add a concise portfolio interpretation of the final model comparison
-* Add selected forecast visualizations from the Streamlit dashboard to the README
-* Continue monitoring 48-hour horizon diagnostics for model weaknesses
 
 ---
 
