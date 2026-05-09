@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from soco_forecasting.data import (
     get_feature_columns,
     load_modeling_data,
     validate_leakage_safe_feature_names,
+    validate_numeric_feature_columns,
 )
 from soco_forecasting.metrics import metrics_by_forecast_horizon, regression_metrics
 from soco_forecasting.mlflow_utils import log_artifacts, log_split_manifest, setup_mlflow
@@ -48,6 +50,7 @@ def main() -> None:
     dt_col = config["datetime_column"]
     feature_columns = get_feature_columns(df, config)
     validate_leakage_safe_feature_names(feature_columns)
+    validate_numeric_feature_columns(df, feature_columns)
     horizon_hours = config["forecast_horizon_hours"]
 
     x_train, y_train = xy(splits.train, feature_columns, target)
@@ -102,6 +105,7 @@ def main() -> None:
         mlflow.log_param("n_trials", config["xgboost"]["n_trials"])
         mlflow.log_param("n_features", len(feature_columns))
         mlflow.log_param("forecast_horizon_hours", horizon_hours)
+        mlflow.log_param("feature_selection_policy", "all_numeric_engineered_features_except_target_timestamps_and_leakage")
         mlflow.set_tag("forecast_strategy", "recursive_48h_windows")
         mlflow.set_tag("future_weather_policy", "historical weather rows used as forecast weather for backtesting")
         mlflow.log_param("tuning_metric", "validation_rmse")
@@ -176,6 +180,19 @@ def main() -> None:
         trials_path = project_path("reports/metrics/xgboost_optuna_trials.csv")
         study.trials_dataframe().to_csv(trials_path, index=False)
 
+        features_path = project_path("reports/metrics/xgboost_features.json")
+        with features_path.open("w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "feature_selection_policy": "all_numeric_engineered_features_except_target_timestamps_and_leakage",
+                    "target": target,
+                    "n_features": len(feature_columns),
+                    "features": feature_columns,
+                },
+                f,
+                indent=2,
+            )
+
         importance_df = pd.DataFrame({"feature": feature_columns, "importance": final_model.feature_importances_})
         importance_path = project_path("reports/metrics/xgboost_feature_importance.csv")
         importance_df.to_csv(importance_path, index=False)
@@ -203,7 +220,7 @@ def main() -> None:
             "reports/figures/xgboost_feature_importance",
         ).values()
 
-        log_artifacts([pred_path, horizon_metrics_path, trials_path, importance_path, model_path, *fig_paths])
+        log_artifacts([pred_path, horizon_metrics_path, trials_path, features_path, importance_path, model_path, *fig_paths])
         print(f"MLflow run_id: {run.info.run_id}")
         print({**validation_metrics, **test_metrics})
 

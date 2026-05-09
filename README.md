@@ -183,6 +183,7 @@ The workflow is designed so future observations do not influence earlier trainin
 * Prophet and XGBoost hyperparameters are selected using validation metrics only.
 * XGBoost uses engineered lag and rolling-window features that represent past demand behavior.
 * During XGBoost validation and test scoring, demand lag and rolling features are recomputed recursively instead of using precomputed validation/test target-derived columns.
+* XGBoost uses the full valid numeric engineered feature set, excluding only the target, raw timestamp/index fields, and obvious future-looking leakage columns.
 * SARIMAX validation and test scoring use repeated 48-hour forecast windows rather than one long open-loop forecast across the full validation or test period.
 * Prophet is evaluated as direct forecasts labeled into 48-hour windows for horizon diagnostics; it uses only a small targeted regressor set and does not require recursive target features or refitting at every forecast origin.
 * Feature columns are checked for future-looking names such as `lead`, `future`, `next_`, or `ahead`.
@@ -262,13 +263,15 @@ The three model families below are intentionally selected to compare a demand-on
 **Status:** Planned / in progress
 
 * Model: XGBoost regression workflow
-* Inputs: Engineered lag, rolling-window, calendar, and weather features
+* Inputs: Full valid numeric engineered feature set
+* Feature groups: Demand lags, demand rolling-window statistics, calendar features, cyclical time encodings, city-level weather variables, regional weather variables, CDH/HDH variables, and lagged/rolling CDH/HDH variables
+* Excluded fields: Target variable, raw datetime/timestamp/index columns, and obvious future-looking leakage columns
 * Forecast strategy: Recursive 48-hour forecasting windows
 * Recursive feature handling: Within each 48-hour window, demand lag and rolling features use prior actual demand before the forecast origin and prior predicted demand inside the window
 * Weather assumption: Historical weather columns in the modeling dataset serve as forecast weather during backtesting
 * Tuning: Optuna hyperparameter tuning
 * Tracking: MLflow experiment tracking for tuning and final evaluation using `scripts/04_tune_xgboost.py`
-* Artifacts: Prediction table, Optuna trials, feature importance, aggregate metrics, and error-by-horizon diagnostics
+* Artifacts: Prediction table, selected feature list, Optuna trials, feature importance, aggregate metrics, and error-by-horizon diagnostics
 
 ---
 

@@ -111,12 +111,28 @@ def save_split_summary_csv(manifest: dict, output_path: str | Path) -> Path:
 
 
 def get_feature_columns(df: pd.DataFrame, config: dict) -> list[str]:
-    excluded = {
+    explicit_exclusions = {
         config["target_column"],
         config["datetime_column"],
         config["local_datetime_column"],
+        "ds",
+        "y",
+        "index",
+        "timestamp",
+        "datetime",
     }
-    return [col for col in df.columns if col not in excluded]
+    suspicious_tokens = ("lead", "future", "next_", "t_plus", "ahead")
+    feature_columns = []
+    for col in df.columns:
+        col_lower = col.lower()
+        if col in explicit_exclusions or col_lower in explicit_exclusions:
+            continue
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            continue
+        if any(token in col_lower for token in suspicious_tokens):
+            continue
+        feature_columns.append(col)
+    return feature_columns
 
 
 def validate_leakage_safe_feature_names(feature_columns: list[str]) -> None:
@@ -124,3 +140,9 @@ def validate_leakage_safe_feature_names(feature_columns: list[str]) -> None:
     suspicious = [col for col in feature_columns if any(token in col.lower() for token in suspicious_tokens)]
     if suspicious:
         raise ValueError(f"Potential future-looking feature names found: {suspicious}")
+
+
+def validate_numeric_feature_columns(df: pd.DataFrame, feature_columns: list[str]) -> None:
+    non_numeric = [col for col in feature_columns if not pd.api.types.is_numeric_dtype(df[col])]
+    if non_numeric:
+        raise ValueError(f"XGBoost feature columns must be numeric. Non-numeric columns found: {non_numeric}")
