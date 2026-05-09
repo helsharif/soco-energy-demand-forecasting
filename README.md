@@ -229,6 +229,8 @@ Plotly is used for modeling, tuning, evaluation, and reporting figures. Importan
 
 The model scripts also save horizon-level metrics, allowing reviewers to see how error changes from forecast hour 1 through forecast hour 48.
 
+XGBoost interpretability uses SHAP on a reproducible sample of the recursive test forecast feature states. The SHAP sample reflects the feature matrix actually passed to the trained model during recursive 48-hour evaluation, so target-derived lag and rolling features inside each forecast window include prior predictions rather than future actual demand.
+
 Prophet tuning uses the full validation period by default. For faster experimentation, `prophet.tuning_max_windows` can optionally limit tuning to an early subset of validation forecast windows, but the committed configuration leaves it as `null`.
 
 The three model families below are intentionally selected to compare a demand-only statistical baseline, a targeted decomposable time-series model, and a feature-rich machine learning model.
@@ -271,7 +273,10 @@ The three model families below are intentionally selected to compare a demand-on
 * Weather assumption: Historical weather columns in the modeling dataset serve as forecast weather during backtesting
 * Tuning: Optuna hyperparameter tuning
 * Tracking: MLflow experiment tracking for tuning and final evaluation using `scripts/04_tune_xgboost.py`
-* Artifacts: Prediction table, selected feature list, Optuna trials, feature importance, aggregate metrics, and error-by-horizon diagnostics
+* Artifacts: Prediction table, selected feature list, Optuna trials, feature importance, aggregate metrics, error-by-horizon diagnostics, and SHAP interpretability outputs
+* SHAP outputs: Global feature importance, summary/beeswarm plot, top feature table, SHAP values sample, SHAP input sample, and optional dependence plots for CDH, HDH, humidity, and key lagged-demand features
+
+SHAP helps identify whether the final XGBoost model relies most on lagged demand, calendar effects, weather, CDH/HDH features, humidity, or other engineered predictors when producing recursive 48-hour forecasts.
 
 ---
 
@@ -372,6 +377,8 @@ pip install -r requirements.txt
 ```
 
 For full training and experimentation, the conda environment is recommended.
+
+Both `energy_demand_ml_env001.yml` and `requirements.txt` include SHAP for XGBoost model interpretation.
 
 ### Modeling Scripts
 

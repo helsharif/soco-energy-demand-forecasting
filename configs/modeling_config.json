@@ -37,6 +37,7 @@
   "xgboost": {
     "n_trials": 50,
     "random_state": 42,
+    "shap_sample_size": 5000,
     "forecast_strategy": "recursive_48h_windows",
     "future_weather_policy": "Use historical weather rows as forecast weather during backtesting."
   },

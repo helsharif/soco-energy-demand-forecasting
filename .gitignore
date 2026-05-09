@@ -206,6 +206,7 @@ mlflow.db
 reports/figures/
 reports/metrics/
 reports/models/
+reports/shap/
 
 # Great Expectations local store
 uncommitted/

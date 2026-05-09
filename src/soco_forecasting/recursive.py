@@ -117,3 +117,64 @@ def recursive_backtest_48h_windows(
         history_base = pd.concat([history_base, actual_window]).sort_index()
 
     return pd.DataFrame(rows)
+
+
+def recursive_backtest_48h_windows_with_features(
+    model,
+    history_df: pd.DataFrame,
+    forecast_df: pd.DataFrame,
+    feature_columns: list[str],
+    target_col: str,
+    datetime_col: str,
+    horizon_hours: int,
+    model_name: str,
+    split_name: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Forecast recursive 48-hour windows and return the model feature states.
+
+    The returned feature matrix contains the exact feature values passed to the
+    model for each recursive forecast step. Target-derived lag and rolling
+    features inside each 48-hour window include prior predictions, not future
+    actual demand.
+    """
+
+    history_base = history_df.sort_values(datetime_col).set_index(datetime_col)[target_col].copy()
+    forecast_sorted = forecast_df.sort_values(datetime_col).reset_index(drop=True)
+    rows: list[dict] = []
+    feature_rows: list[pd.DataFrame] = []
+
+    for window_start in range(0, len(forecast_sorted), horizon_hours):
+        window = forecast_sorted.iloc[window_start : window_start + horizon_hours].copy()
+        origin_timestamp = window[datetime_col].iloc[0] - pd.Timedelta(hours=1)
+        working_history = history_base.copy()
+
+        for horizon_step, (_, row) in enumerate(window.iterrows(), start=1):
+            timestamp = row[datetime_col]
+            x_row = make_recursive_feature_row(row, timestamp, working_history, feature_columns, target_col)
+            prediction = float(model.predict(x_row)[0])
+            actual = float(row[target_col])
+            working_history.loc[timestamp] = prediction
+
+            rows.append(
+                {
+                    "datetime_utc": timestamp,
+                    "actual": actual,
+                    "predicted": prediction,
+                    "residual": actual - prediction,
+                    "absolute_error": abs(actual - prediction),
+                    "model": model_name,
+                    "split": split_name,
+                    "forecast_origin": origin_timestamp,
+                    "forecast_horizon_hour": horizon_step,
+                }
+            )
+            feature_row = x_row.copy()
+            feature_row.insert(0, "forecast_horizon_hour", horizon_step)
+            feature_row.insert(0, "forecast_origin", origin_timestamp)
+            feature_row.insert(0, "datetime_utc", timestamp)
+            feature_rows.append(feature_row)
+
+        actual_window = window.set_index(datetime_col)[target_col]
+        history_base = pd.concat([history_base, actual_window]).sort_index()
+
+    return pd.DataFrame(rows), pd.concat(feature_rows, ignore_index=True)

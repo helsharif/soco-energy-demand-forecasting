@@ -29,7 +29,8 @@ from soco_forecasting.plots import (
     residual_plot,
     save_plotly_figure,
 )
-from soco_forecasting.recursive import recursive_backtest_48h_windows
+from soco_forecasting.recursive import recursive_backtest_48h_windows, recursive_backtest_48h_windows_with_features
+from soco_forecasting.shap_utils import generate_xgboost_shap_artifacts
 
 
 MODEL_NAME = "XGBoost"
@@ -52,6 +53,7 @@ def main() -> None:
     validate_leakage_safe_feature_names(feature_columns)
     validate_numeric_feature_columns(df, feature_columns)
     horizon_hours = config["forecast_horizon_hours"]
+    shap_sample_size = config["xgboost"].get("shap_sample_size", 5000)
 
     x_train, y_train = xy(splits.train, feature_columns, target)
     x_validation, y_validation = xy(splits.validation, feature_columns, target)
@@ -106,6 +108,8 @@ def main() -> None:
         mlflow.log_param("n_features", len(feature_columns))
         mlflow.log_param("forecast_horizon_hours", horizon_hours)
         mlflow.log_param("feature_selection_policy", "all_numeric_engineered_features_except_target_timestamps_and_leakage")
+        mlflow.log_param("shap_sample_size", shap_sample_size)
+        mlflow.log_param("shap_n_features_explained", len(feature_columns))
         mlflow.set_tag("forecast_strategy", "recursive_48h_windows")
         mlflow.set_tag("future_weather_policy", "historical weather rows used as forecast weather for backtesting")
         mlflow.log_param("tuning_metric", "validation_rmse")
@@ -149,7 +153,7 @@ def main() -> None:
             **study.best_params,
         )
         final_model.fit(x_train_validation, y_train_validation)
-        test_pred_df = recursive_backtest_48h_windows(
+        test_pred_df, test_feature_state_df = recursive_backtest_48h_windows_with_features(
             model=final_model,
             history_df=pd.concat([splits.train, splits.validation]),
             forecast_df=splits.test,
@@ -201,6 +205,17 @@ def main() -> None:
         model_path.parent.mkdir(parents=True, exist_ok=True)
         final_model.save_model(model_path)
 
+        shap_artifacts = generate_xgboost_shap_artifacts(
+            model=final_model,
+            feature_state_df=test_feature_state_df,
+            feature_columns=feature_columns,
+            output_dir="reports/shap/xgboost",
+            sample_size=shap_sample_size,
+            random_state=random_state,
+        )
+        mlflow.log_param("shap_actual_sample_size", shap_artifacts["sample_size"])
+        mlflow.log_param("shap_dependence_plot_count", shap_artifacts["n_dependence_plots"])
+
         fig_paths = []
         fig_paths += save_plotly_figure(
             actual_vs_predicted(pred_df[pred_df["split"] == "validation"], "XGBoost Validation: Actual vs Predicted"),
@@ -221,6 +236,7 @@ def main() -> None:
         ).values()
 
         log_artifacts([pred_path, horizon_metrics_path, trials_path, features_path, importance_path, model_path, *fig_paths])
+        mlflow.log_artifacts(str(shap_artifacts["shap_dir"]), artifact_path="shap")
         print(f"MLflow run_id: {run.info.run_id}")
         print({**validation_metrics, **test_metrics})
 

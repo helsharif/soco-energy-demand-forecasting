@@ -46,7 +46,7 @@ dependencies:
   # Model tuning + interpretability
   # ---------------------------
   - optuna                  # Hyperparameter optimization (better than grid search)
-  - shap                    # Model explainability (feature importance, interactions)
+  - shap                    # SHAP model explainability for XGBoost feature attribution
 
   # ---------------------------
   # Experiment tracking / data quality
