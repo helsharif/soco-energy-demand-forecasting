@@ -304,6 +304,23 @@ Outputs include `reports/xgboost_pruned_comparison.csv`, `reports/xgboost_pruned
 
 ---
 
+## Test Set Model Performance
+
+The table below reports final test-set performance for the 48-hour forecasting comparison. Lower values are better for all metrics.
+
+| Model | RMSE (MWh) | MAE (MWh) | MAPE (%) |
+|---|---:|---:|---:|
+| SARIMAX | 2,925.31 | 2,061.94 | 7.65 |
+| Prophet | 2,088.64 | 1,644.67 | 6.05 |
+| XGBoost Full | 1,000.81 | 692.68 | 2.48 |
+| XGBoost Pruned Top-50 | **998.93** | **687.42** | **2.46** |
+
+The XGBoost models substantially outperformed the demand-only SARIMAX baseline and the Prophet model on the held-out test period. This is consistent with the short-term load forecasting problem: recent demand lags, rolling statistics, calendar effects, weather variables, and degree-hour features provide strong information about the next 48 hourly demand values. Prophet improved over SARIMAX, likely because it captured smoother seasonal structure and targeted weather-driven effects, but it remained less flexible than gradient boosting for nonlinear demand persistence and weather interactions.
+
+The pruned top-50 XGBoost model slightly outperformed the full-feature XGBoost model across RMSE, MAE, and MAPE. The difference is small, but it suggests that the most informative lag, calendar, and weather-derived features captured nearly all of the predictive signal while reducing feature noise. For a portfolio or deployment-oriented version of this workflow, the pruned model is a strong candidate because it preserves accuracy while offering a simpler, more interpretable feature set.
+
+---
+
 ## Current Project Status
 
 This project is complete and portfolio-ready. The repository now includes the full end-to-end workflow from raw data preparation through deployed model-result visualization.
