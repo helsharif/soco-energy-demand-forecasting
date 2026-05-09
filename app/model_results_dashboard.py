@@ -13,6 +13,8 @@ import streamlit as st
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_DIR.parent
 DATA_DIR = PROJECT_ROOT / "app_data" / "model_results"
+LOCAL_TIMEZONE = "America/New_York"
+LOCAL_TIME_LABEL = "US Eastern"
 
 MODEL_ORDER = ["sarimax", "prophet", "xgboost_full", "xgboost_pruned_top50"]
 MODEL_LABELS = {
@@ -198,6 +200,12 @@ def first_present(columns: pd.Index, candidates: list[str]) -> str | None:
     return None
 
 
+def to_local_time(values: pd.Series) -> pd.Series:
+    """Convert UTC-like dashboard timestamps to naive US Eastern datetimes for plotting/widgets."""
+    timestamps = pd.to_datetime(values, errors="coerce", utc=True)
+    return timestamps.dt.tz_convert(LOCAL_TIMEZONE).dt.tz_localize(None)
+
+
 def model_dir(model_key: str) -> Path:
     return DATA_DIR / model_key
 
@@ -243,7 +251,7 @@ def normalize_predictions(df: pd.DataFrame, model_key: str) -> pd.DataFrame:
 
     out = pd.DataFrame(
         {
-            "timestamp": pd.to_datetime(df[timestamp_col], errors="coerce", utc=False),
+            "timestamp": to_local_time(df[timestamp_col]),
             "actual": pd.to_numeric(df[actual_col], errors="coerce"),
             "predicted": pd.to_numeric(df[predicted_col], errors="coerce"),
             "split": df[split_col].astype(str).str.lower() if split_col else "test",
@@ -258,7 +266,6 @@ def normalize_predictions(df: pd.DataFrame, model_key: str) -> pd.DataFrame:
     if horizon_col:
         out["horizon_hour"] = pd.to_numeric(df[horizon_col], errors="coerce")
     out = out.dropna(subset=["timestamp", "actual", "predicted"])
-    out["timestamp"] = out["timestamp"].dt.tz_localize(None) if getattr(out["timestamp"].dt, "tz", None) else out["timestamp"]
     out["date"] = out["timestamp"].dt.floor("D")
     out["residual"] = out["actual"] - out["predicted"]
     return out
@@ -437,7 +444,7 @@ def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granu
             mode="lines",
             name="Actual Demand",
             line=dict(color=ACTUAL_COLOR, width=ACTUAL_TRACE_WIDTH),
-            hovertemplate="Timestamp: %{x}<br>Actual demand: %{y:,.0f} MWh<extra>Actual</extra>",
+            hovertemplate=f"{LOCAL_TIME_LABEL}: " + "%{x}<br>Actual demand: %{y:,.0f} MWh<extra>Actual</extra>",
         )
     )
     for label in selected_labels:
@@ -454,7 +461,7 @@ def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granu
                 opacity=MODEL_TRACE_OPACITY,
                 customdata=np.stack([model_df["actual"], model_df["residual"]], axis=-1),
                 hovertemplate=(
-                    "Timestamp: %{x}<br>"
+                    f"{LOCAL_TIME_LABEL}: " + "%{x}<br>"
                     "Model: " + label + "<br>"
                     "Actual demand: %{customdata[0]:,.0f} MWh<br>"
                     "Predicted demand: %{y:,.0f} MWh<br>"
@@ -464,7 +471,7 @@ def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granu
         )
     fig.update_layout(
         title=f"Actual vs Predicted Demand ({granularity})",
-        xaxis_title="Date",
+        xaxis_title=f"Date ({LOCAL_TIME_LABEL})",
         yaxis_title="Demand (MWh)",
         hovermode="x unified",
         legend_title_text="Series",
@@ -485,13 +492,13 @@ def residual_plot(df: pd.DataFrame, selected_labels: list[str]) -> go.Figure:
                 mode="markers",
                 name=label,
                 marker=dict(color=MODEL_COLORS[label], size=5, opacity=MODEL_TRACE_OPACITY),
-                hovertemplate="Timestamp: %{x}<br>Model: " + label + "<br>Residual: %{y:,.0f} MWh<extra></extra>",
+                hovertemplate=f"{LOCAL_TIME_LABEL}: " + "%{x}<br>Model: " + label + "<br>Residual: %{y:,.0f} MWh<extra></extra>",
             )
         )
     fig.add_hline(y=0, line_dash="dash", line_color="#374151")
     fig.update_layout(
         title="Residuals Over Time",
-        xaxis_title="Date",
+        xaxis_title=f"Date ({LOCAL_TIME_LABEL})",
         yaxis_title="Actual - Predicted (MWh)",
     )
     return polish_figure(fig, height=650)
@@ -640,7 +647,7 @@ with st.sidebar:
     min_date, max_date = date_bounds(selected_prediction_frames, split, selected_labels)
     if min_date is not None and max_date is not None:
         start, end = st.slider(
-            "Displayed date range",
+            f"Displayed date range ({LOCAL_TIME_LABEL})",
             min_value=min_date.to_pydatetime(),
             max_value=max_date.to_pydatetime(),
             value=(min_date.to_pydatetime(), max_date.to_pydatetime()),
@@ -731,6 +738,7 @@ else:
 
         **How to read the results**
 
+        All dashboard timestamps are displayed in US Eastern local time.
         XGBoost models are expected to capture nonlinear demand persistence, calendar effects, and weather/degree-hour relationships.
         Prophet provides an interpretable benchmark, while SARIMAX provides a demand-only baseline.
         The pruned XGBoost experiment tests whether model simplicity can improve without a major accuracy penalty.
