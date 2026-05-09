@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import html
 from pathlib import Path
 
 import numpy as np
@@ -165,6 +166,223 @@ st.markdown(
     .metric-table-wrap th:last-child,
     .metric-table-wrap td:last-child {
         border-right: 0;
+    }
+
+    .metric-cards-mobile {
+        display: none;
+    }
+
+    /* The mobile filter menu is duplicated from the sidebar because
+       Streamlit's native sidebar toggle is easy to miss on phones. We hide
+       the expander on desktop using :has() and show it only at phone/tablet
+       widths. Chrome, Edge, Safari, and current mobile browsers support this. */
+    div[data-testid="stExpander"]:has(.mobile-controls-marker) {
+        display: none;
+    }
+
+    .mobile-metric-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #ffffff;
+        margin-bottom: 0.85rem;
+        overflow: hidden;
+    }
+
+    .mobile-metric-title {
+        background: #f8fafc;
+        color: #374151;
+        font-weight: 700;
+        padding: 0.75rem 0.9rem;
+        text-align: center;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .mobile-metric-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.65rem 0.9rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .mobile-metric-row:last-child {
+        border-bottom: 0;
+    }
+
+    .mobile-metric-model {
+        color: #4b5563;
+        font-weight: 600;
+    }
+
+    .mobile-metric-value {
+        color: #111827;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+    }
+
+    .mobile-metric-best {
+        background: #dcfce7;
+    }
+
+    .mobile-metric-best .mobile-metric-value {
+        color: #14532d;
+        font-weight: 800;
+    }
+
+    /* Mobile phones: make the dashboard feel intentionally designed rather than
+       like a squeezed desktop canvas. Avoid forcing Streamlit's sidebar width:
+       on phones that can create a half-collapsed rail that steals chart space.
+       Instead, let Streamlit manage the sidebar overlay and optimize the main
+       page, charts, and metric summaries for narrow viewports. */
+    @media (max-width: 768px) {
+        html, body, .stApp {
+            font-size: 16px;
+        }
+
+        .block-container {
+            max-width: 100vw;
+            padding-top: 1.25rem;
+            padding-left: 0.85rem;
+            padding-right: 0.85rem;
+        }
+
+        [data-testid="stSidebar"] {
+            display: none !important;
+        }
+
+        [data-testid="collapsedControl"] {
+            display: none !important;
+        }
+
+        div[data-testid="stExpander"]:has(.mobile-controls-marker) {
+            display: block;
+            margin-bottom: 1rem;
+        }
+
+        div[data-testid="stExpander"]:has(.mobile-controls-marker) details {
+            border: 1px solid #dbe4ef;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            background: #ffffff;
+        }
+
+        div[data-testid="stExpander"]:has(.mobile-controls-marker) summary {
+            font-size: 1rem !important;
+            font-weight: 800 !important;
+        }
+
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"] {
+            margin-left: 0 !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
+        }
+
+        .stPlotlyChart,
+        .stPlotlyChart > div,
+        .js-plotly-plot,
+        .plot-container,
+        .svg-container {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        h1 {
+            font-size: 1.45rem !important;
+            line-height: 1.18 !important;
+            overflow-wrap: anywhere;
+        }
+
+        h2 {
+            font-size: 1.12rem !important;
+            margin-top: 1.35rem !important;
+            overflow-wrap: anywhere;
+        }
+
+        h3 {
+            font-size: 1.1rem !important;
+        }
+
+        .dashboard-subtitle {
+            font-size: 0.98rem !important;
+            line-height: 1.45 !important;
+            margin-bottom: 1.1rem;
+        }
+
+        [data-testid="stMarkdownContainer"] p,
+        [data-testid="stCaptionContainer"] {
+            font-size: 0.95rem !important;
+            line-height: 1.45 !important;
+        }
+
+        .metric-table-wrap {
+            display: none;
+        }
+
+        .metric-cards-mobile {
+            display: block;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.horizon-metric-marker) {
+            text-align: center;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.horizon-metric-marker) [data-testid="stRadio"],
+        div[data-testid="stVerticalBlock"]:has(.horizon-metric-marker) [data-testid="stRadio"] > div,
+        div[data-testid="stVerticalBlock"]:has(.horizon-metric-marker) [role="radiogroup"] {
+            justify-content: center !important;
+            text-align: center !important;
+            width: 100% !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.horizon-metric-marker) [role="radiogroup"] {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.9rem !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+
+        div[data-testid="stVerticalBlock"]:has(.horizon-metric-marker) [role="radiogroup"] label {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+
+        .horizon-metric-label {
+            display: block;
+            width: 100%;
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+        }
+
+    }
+
+    @media (max-width: 430px) {
+        .block-container {
+            padding-left: 0.65rem;
+            padding-right: 0.65rem;
+        }
+
+        h1 {
+            font-size: 1.32rem !important;
+        }
+
+        h2 {
+            font-size: 1.05rem !important;
+        }
+
+        .mobile-metric-row {
+            flex-direction: column;
+            gap: 0.25rem;
+            text-align: center;
+        }
+
+        .mobile-metric-value {
+            text-align: center;
+        }
     }
     </style>
     """,
@@ -412,13 +630,56 @@ def style_metric_table(df: pd.DataFrame):
     )
 
 
-def polish_figure(fig: go.Figure, height: int) -> go.Figure:
+def mobile_metric_cards(df: pd.DataFrame) -> str:
+    cards = []
+    for _, row in df.iterrows():
+        numeric = pd.to_numeric(row.drop(labels=["Metric"], errors="ignore"), errors="coerce")
+        best = numeric.min(skipna=True)
+        rows = []
+        for model_name, value in numeric.items():
+            best_class = " mobile-metric-best" if pd.notna(value) and value == best else ""
+            rows.append(
+                '<div class="mobile-metric-row{best_class}">'
+                '<span class="mobile-metric-model">{model_name}</span>'
+                '<span class="mobile-metric-value">{value}</span>'
+                "</div>".format(
+                    best_class=best_class,
+                    model_name=html.escape(str(model_name)),
+                    value=html.escape(format_metric(value)),
+                )
+            )
+        cards.append(
+            '<div class="mobile-metric-card">'
+            '<div class="mobile-metric-title">{metric}</div>'
+            "{rows}"
+            "</div>".format(metric=html.escape(str(row["Metric"])), rows="".join(rows))
+        )
+    return f'<div class="metric-cards-mobile">{"".join(cards)}</div>'
+
+
+def polish_figure(
+    fig: go.Figure,
+    height: int,
+    *,
+    legend_y: float = -0.18,
+    bottom_margin: int = 115,
+    top_margin: int = 55,
+    title_size: int | None = None,
+) -> go.Figure:
     fig.update_layout(
         height=height,
         font=dict(size=CHART_FONT_SIZE, color="#1f2937"),
-        title=dict(font=dict(size=CHART_TITLE_FONT_SIZE, color="#111827")),
-        legend=dict(font=dict(size=CHART_LEGEND_FONT_SIZE), title_font=dict(size=CHART_LEGEND_FONT_SIZE)),
-        margin=dict(l=20, r=30, t=70, b=55),
+        title=dict(font=dict(size=title_size or CHART_TITLE_FONT_SIZE, color="#111827")),
+        legend=dict(
+            font=dict(size=CHART_LEGEND_FONT_SIZE),
+            title_font=dict(size=CHART_LEGEND_FONT_SIZE),
+            orientation="h",
+            yanchor="top",
+            y=legend_y,
+            xanchor="left",
+            x=0,
+        ),
+        margin=dict(l=20, r=30, t=top_margin, b=bottom_margin),
     )
     fig.update_xaxes(
         title_font=dict(size=CHART_AXIS_FONT_SIZE),
@@ -435,6 +696,13 @@ def polish_figure(fig: go.Figure, height: int) -> go.Figure:
     return fig
 
 
+def plotly_config() -> dict:
+    return {
+        "responsive": True,
+        "displayModeBar": False,
+    }
+
+
 def display_time_format(granularity: str) -> str:
     return DAILY_TIME_FORMAT if granularity == "Daily" else HOURLY_TIME_FORMAT
 
@@ -446,7 +714,7 @@ def tick_time_format(granularity: str) -> str:
 def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granularity: str) -> go.Figure:
     fig = go.Figure()
     if df.empty:
-        fig.update_layout(title="Actual vs Predicted Demand")
+        fig.update_layout(title="")
         return polish_figure(fig, height=900)
 
     hover_time_format = display_time_format(granularity)
@@ -484,7 +752,7 @@ def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granu
             )
         )
     fig.update_layout(
-        title=f"Actual vs Predicted Demand ({granularity})",
+        title="",
         xaxis_title=f"Date ({LOCAL_TIME_LABEL})",
         yaxis_title="Demand (MWh)",
         hovermode="x unified",
@@ -518,7 +786,7 @@ def residual_plot(df: pd.DataFrame, selected_labels: list[str], granularity: str
         yaxis_title="Actual - Predicted (MWh)",
     )
     fig.update_xaxes(tickformat=tick_time_format(granularity))
-    return polish_figure(fig, height=650)
+    return polish_figure(fig, height=650, legend_y=-0.28, bottom_margin=165)
 
 
 def horizon_plot(df: pd.DataFrame, metric: str, selected_labels: list[str]) -> go.Figure:
@@ -531,10 +799,10 @@ def horizon_plot(df: pd.DataFrame, metric: str, selected_labels: list[str]) -> g
         markers=True,
         color_discrete_map=MODEL_COLORS,
         labels={"horizon_hour": "Forecast Horizon Hour", metric: metric, "model_name": "Model"},
-        title=f"{metric} by Forecast Horizon (Full Selected Split)",
+        title=f"{metric} by Forecast Horizon",
     )
     fig.update_traces(opacity=MODEL_TRACE_OPACITY)
-    return polish_figure(fig, height=650)
+    return polish_figure(fig, height=650, legend_y=-0.25, bottom_margin=155)
 
 
 def prepare_importance(model_key: str, data: dict, top_n: int = 20) -> pd.DataFrame:
@@ -584,10 +852,10 @@ def interpretability_plot(importance_df: pd.DataFrame, anchor_model_key: str | N
         category_orders={"feature": ordered_features},
         color_discrete_map=MODEL_COLORS,
         labels={"score": "Importance", "feature": "Feature", "model_name": "Model"},
-        title="XGBoost Feature Importance / SHAP Summary",
+        title="XGBoost Feature Importance",
     )
     fig.update_yaxes(categoryorder="array", categoryarray=ordered_features, autorange="reversed")
-    return polish_figure(fig, height=860)
+    return polish_figure(fig, height=860, top_margin=70, title_size=CHART_TITLE_FONT_SIZE - 2)
 
 
 def date_bounds(predictions: list[pd.DataFrame], split: str, selected_labels: list[str]) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
@@ -598,6 +866,117 @@ def date_bounds(predictions: list[pd.DataFrame], split: str, selected_labels: li
     if combined.empty:
         return None, None
     return combined["timestamp"].min(), combined["timestamp"].max()
+
+
+def set_widget_value(widget_key: str, value) -> None:
+    if st.session_state.get(widget_key) != value:
+        st.session_state[widget_key] = value
+
+
+def reset_date_range_state() -> None:
+    for key in ["date_range_value", "sidebar_date_range", "mobile_date_range"]:
+        if key in st.session_state:
+            del st.session_state[key]
+
+
+def sync_choice(source_key: str, canonical_key: str, peer_keys: list[str]) -> None:
+    value = st.session_state[source_key]
+    resets_date_range = canonical_key in {"split_choice", "granularity_choice"} or canonical_key.startswith("model_selected_")
+    if resets_date_range and st.session_state.get(canonical_key) != value:
+        reset_date_range_state()
+    st.session_state[canonical_key] = value
+    for peer_key in peer_keys:
+        set_widget_value(peer_key, value)
+
+
+def initialize_control_state(available_labels: list[str], default_split: str) -> None:
+    st.session_state.setdefault("page_choice", "Results Dashboard")
+    st.session_state.setdefault("split_choice", default_split)
+    st.session_state.setdefault("granularity_choice", "Daily")
+    for label in available_labels:
+        model_key = MODEL_KEYS_BY_LABEL[label]
+        st.session_state.setdefault(f"model_selected_{model_key}", True)
+
+
+def selected_labels_from_state(available_labels: list[str]) -> list[str]:
+    return [
+        label
+        for label in available_labels
+        if st.session_state.get(f"model_selected_{MODEL_KEYS_BY_LABEL[label]}", True)
+    ]
+
+
+def render_filter_controls(prefix: str, available_labels: list[str], split_options: list[str], include_date: bool = False, date_bounds_value=None) -> tuple[pd.Timestamp | None, pd.Timestamp | None] | None:
+    set_widget_value(f"{prefix}_page", st.session_state["page_choice"])
+    st.radio(
+        "Page",
+        ["Results Dashboard", "About the App"],
+        key=f"{prefix}_page",
+        on_change=sync_choice,
+        args=(f"{prefix}_page", "page_choice", ["sidebar_page", "mobile_page"]),
+    )
+
+    st.markdown("**Model Selection**")
+    for label in available_labels:
+        model_key = MODEL_KEYS_BY_LABEL[label]
+        canonical_key = f"model_selected_{model_key}"
+        widget_key = f"{prefix}_model_{model_key}"
+        set_widget_value(widget_key, st.session_state[canonical_key])
+        st.checkbox(
+            label,
+            key=widget_key,
+            on_change=sync_choice,
+            args=(widget_key, canonical_key, [f"sidebar_model_{model_key}", f"mobile_model_{model_key}"]),
+        )
+
+    set_widget_value(f"{prefix}_split", st.session_state["split_choice"])
+    st.radio(
+        "Evaluation split",
+        options=split_options,
+        key=f"{prefix}_split",
+        horizontal=True,
+        on_change=sync_choice,
+        args=(f"{prefix}_split", "split_choice", ["sidebar_split", "mobile_split"]),
+    )
+
+    set_widget_value(f"{prefix}_granularity", st.session_state["granularity_choice"])
+    st.radio(
+        "Prediction Plot Granularity",
+        ["Daily", "Hourly"],
+        key=f"{prefix}_granularity",
+        horizontal=True,
+        on_change=sync_choice,
+        args=(f"{prefix}_granularity", "granularity_choice", ["sidebar_granularity", "mobile_granularity"]),
+    )
+
+    if not include_date:
+        return None
+
+    min_date, max_date = date_bounds_value
+    if min_date is None or max_date is None:
+        st.info("No date range is available for the selected models and split.")
+        return None, None
+
+    bounded_value = st.session_state.get(
+        "date_range_value",
+        (min_date.to_pydatetime(), max_date.to_pydatetime()),
+    )
+    bounded_start = max(pd.Timestamp(bounded_value[0]), min_date).to_pydatetime()
+    bounded_end = min(pd.Timestamp(bounded_value[1]), max_date).to_pydatetime()
+    if bounded_start > bounded_end:
+        bounded_start, bounded_end = min_date.to_pydatetime(), max_date.to_pydatetime()
+    st.session_state["date_range_value"] = (bounded_start, bounded_end)
+    set_widget_value(f"{prefix}_date_range", st.session_state["date_range_value"])
+    st.slider(
+        f"Displayed date range ({LOCAL_TIME_LABEL})",
+        min_value=min_date.to_pydatetime(),
+        max_value=max_date.to_pydatetime(),
+        key=f"{prefix}_date_range",
+        format=SLIDER_TIME_FORMAT,
+        on_change=sync_choice,
+        args=(f"{prefix}_date_range", "date_range_value", ["sidebar_date_range", "mobile_date_range"]),
+    )
+    return pd.Timestamp(st.session_state["date_range_value"][0]), pd.Timestamp(st.session_state["date_range_value"][1])
 
 
 st.title("⚡ SOCO 48-Hour Energy Demand Forecasting Results")
@@ -636,46 +1015,50 @@ split_candidates = sorted(
     }
 )
 default_split = "test" if "test" in split_candidates else (split_candidates[0] if split_candidates else "test")
+split_options = ["test", "validation"]
+initialize_control_state(available_labels, default_split)
+
+page = st.session_state["page_choice"]
+split = st.session_state["split_choice"]
+granularity = st.session_state["granularity_choice"]
+selected_labels = selected_labels_from_state(available_labels)
+if not selected_labels:
+    st.warning("Select at least one model to display plots.")
+selected_keys = [MODEL_KEYS_BY_LABEL[label] for label in selected_labels]
+all_granular_predictions = {
+    key: predictions_for_granularity(data, granularity)
+    for key, data in model_data.items()
+}
+selected_prediction_frames = [all_granular_predictions[key] for key in selected_keys if key in all_granular_predictions]
+min_date, max_date = date_bounds(selected_prediction_frames, split, selected_labels)
 
 with st.sidebar:
-    st.header("View Settings")
-    page = st.radio("Page", ["Results Dashboard", "About the App"], index=0)
-    st.markdown("**Model Selection**")
-    selected_labels = []
-    for label in available_labels:
-        checked = st.checkbox(label, value=label in default_labels, key=f"model_checkbox_{MODEL_KEYS_BY_LABEL[label]}")
-        if checked:
-            selected_labels.append(label)
-    if not selected_labels:
-        st.warning("Select at least one model to display plots.")
-    split = st.radio(
-        "Evaluation split",
-        options=["test", "validation"],
-        index=0 if default_split == "test" else 1,
-        horizontal=True,
+    sidebar_date_range = render_filter_controls(
+        "sidebar",
+        available_labels,
+        split_options,
+        include_date=True,
+        date_bounds_value=(min_date, max_date),
     )
-    granularity = st.radio("Prediction Plot Granularity", ["Daily", "Hourly"], index=0, horizontal=True)
-    selected_keys = [MODEL_KEYS_BY_LABEL[label] for label in selected_labels]
-    all_granular_predictions = {
-        key: predictions_for_granularity(data, granularity)
-        for key, data in model_data.items()
-    }
-    selected_prediction_frames = [all_granular_predictions[key] for key in selected_keys if key in all_granular_predictions]
-    min_date, max_date = date_bounds(selected_prediction_frames, split, selected_labels)
-    if min_date is not None and max_date is not None:
-        start, end = st.slider(
-            f"Displayed date range ({LOCAL_TIME_LABEL})",
-            min_value=min_date.to_pydatetime(),
-            max_value=max_date.to_pydatetime(),
-            value=(min_date.to_pydatetime(), max_date.to_pydatetime()),
-            format=SLIDER_TIME_FORMAT,
-        )
-        start_ts = pd.Timestamp(start)
-        end_ts = pd.Timestamp(end)
-    else:
-        st.info("No date range is available for the selected models and split.")
-        start_ts = None
-        end_ts = None
+
+with st.expander("☰ View Settings / Filters", expanded=False):
+    st.markdown('<span class="mobile-controls-marker"></span>', unsafe_allow_html=True)
+    st.caption("Use these mobile-friendly controls to change page, models, split, granularity, and date range.")
+    mobile_date_range = render_filter_controls(
+        "mobile",
+        available_labels,
+        split_options,
+        include_date=True,
+        date_bounds_value=(min_date, max_date),
+    )
+
+date_range = st.session_state.get("date_range_value")
+if date_range is not None and min_date is not None and max_date is not None:
+    start_ts = pd.Timestamp(date_range[0])
+    end_ts = pd.Timestamp(date_range[1])
+else:
+    start_ts = None
+    end_ts = None
 
 if page == "Results Dashboard":
     st.subheader("📈 Actual vs Predicted Time Series")
@@ -691,7 +1074,11 @@ if page == "Results Dashboard":
             filtered_by_model[key] = model_df
         selected_filtered = [filtered_by_model[key] for key in selected_keys if key in filtered_by_model]
         filtered_combined = pd.concat(selected_filtered, ignore_index=True) if selected_filtered else pd.DataFrame()
-        st.plotly_chart(actual_vs_predicted_plot(filtered_combined, selected_labels, granularity), width="stretch")
+        st.plotly_chart(
+            actual_vs_predicted_plot(filtered_combined, selected_labels, granularity),
+            width="stretch",
+            config=plotly_config(),
+        )
 
     st.subheader("🎯 Filtered Model Metrics")
     st.caption("Metrics are recalculated from the currently selected split, date range, and plot granularity. Lower values are better; green marks the best model for each row.")
@@ -700,19 +1087,34 @@ if page == "Results Dashboard":
         f'<div class="metric-table-wrap">{style_metric_table(metrics_df).to_html()}</div>',
         unsafe_allow_html=True,
     )
+    st.markdown(mobile_metric_cards(metrics_df), unsafe_allow_html=True)
 
     st.subheader("Residuals")
     st.caption("Residuals near zero indicate lower bias/error. Clusters or spikes may indicate peak demand events, weather extremes, holidays, or other difficult operating conditions.")
     if filtered_combined.empty:
         st.info("Residual data are not available for the current selection.")
     else:
-        st.plotly_chart(residual_plot(filtered_combined, selected_labels, granularity), width="stretch")
+        st.plotly_chart(
+            residual_plot(filtered_combined, selected_labels, granularity),
+            width="stretch",
+            config=plotly_config(),
+        )
 
     st.subheader("Error by Forecast Horizon")
     st.caption("This chart uses the full selected validation/test split, not the displayed date range. Forecast error often grows with horizon; unrealistically flat or very low horizon error can be a leakage warning.")
     horizon_chart_col, horizon_control_col = st.columns([4, 1])
     with horizon_control_col:
-        horizon_metric = st.radio("Horizon Metric", ["MAE", "RMSE", "MAPE"], index=0)
+        st.markdown('<span class="horizon-metric-marker"></span>', unsafe_allow_html=True)
+        st.markdown('<span class="horizon-metric-label">Horizon Metric</span>', unsafe_allow_html=True)
+        metric_left, metric_center, metric_right = st.columns([1, 3, 1])
+        with metric_center:
+            horizon_metric = st.radio(
+                "Horizon Metric",
+                ["MAE", "RMSE", "MAPE"],
+                index=0,
+                horizontal=True,
+                label_visibility="collapsed",
+            )
     horizon_frames = []
     for key in selected_keys:
         horizon_df = model_data[key]["horizon"]
@@ -721,7 +1123,11 @@ if page == "Results Dashboard":
     if horizon_frames:
         horizon_combined = pd.concat(horizon_frames, ignore_index=True)
         with horizon_chart_col:
-            st.plotly_chart(horizon_plot(horizon_combined, horizon_metric, selected_labels), width="stretch")
+            st.plotly_chart(
+                horizon_plot(horizon_combined, horizon_metric, selected_labels),
+                width="stretch",
+                config=plotly_config(),
+            )
     else:
         st.info("Horizon-level error data are not available for the selected models.")
 
@@ -736,7 +1142,11 @@ if page == "Results Dashboard":
         importance_frames = [df for df in importance_frames if not df.empty]
         if importance_frames:
             anchor_key = "xgboost_pruned_top50" if "xgboost_pruned_top50" in xgb_keys else xgb_keys[0]
-            st.plotly_chart(interpretability_plot(pd.concat(importance_frames, ignore_index=True), anchor_key), width="stretch")
+            st.plotly_chart(
+                interpretability_plot(pd.concat(importance_frames, ignore_index=True), anchor_key),
+                width="stretch",
+                config=plotly_config(),
+            )
         else:
             st.info("XGBoost interpretability files are not available for the selected model(s).")
 
