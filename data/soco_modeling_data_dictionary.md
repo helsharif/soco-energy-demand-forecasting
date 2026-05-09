@@ -129,3 +129,16 @@
 | month_cos | Cyclical Encoding | Cosine transformation of month. |
 | day_of_year_sin | Cyclical Encoding | Sine transformation of day of year (annual cycle). |
 | day_of_year_cos | Cyclical Encoding | Cosine transformation of day of year. |
+
+### Cooling and Heating Degree Hours Features
+
+| Column | Category | Description |
+|--------|----------|-------------|
+| CDH_regional | CDH Feature | Regional Cooling Degree Hours calculated from the mean 2-meter air temperature (captures non-linear cooling load). |
+| HDH_regional | HDH Feature | Regional Heating Degree Hours calculated from the mean 2-meter air temperature (captures non-linear heating load). |
+| CDH_regional_rolling_mean_3h | CDH Feature | 3-hour rolling average of regional Cooling Degree Hours (captures short-term building thermal lag). |
+| HDH_regional_rolling_mean_3h | HDH Feature | 3-hour rolling average of regional Heating Degree Hours (captures short-term building thermal lag). |
+| CDH_regional_rolling_mean_6h | CDH Feature | 6-hour rolling average of regional Cooling Degree Hours (captures medium-term building thermal lag). |
+| HDH_regional_rolling_mean_6h | HDH Feature | 6-hour rolling average of regional Heating Degree Hours (captures medium-term building thermal lag). |
+| CDH_regional_rolling_mean_24h | CDH Feature | 24-hour rolling average of regional Cooling Degree Hours (captures daily thermal mass buildup). |
+| HDH_regional_rolling_mean_24h | HDH Feature | 24-hour rolling average of regional Heating Degree Hours (captures daily thermal mass buildup). |
