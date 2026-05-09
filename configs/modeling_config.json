@@ -35,9 +35,17 @@
     "tuning_max_windows": null
   },
   "xgboost": {
-    "n_trials": 50,
+    "run_mode": "full",
+    "n_trials": null,
+    "n_trials_fast": 10,
+    "n_trials_full": 50,
+    "n_estimators_max": 500,
+    "early_stopping_rounds": 50,
     "random_state": 42,
     "shap_sample_size": 5000,
+    "run_shap": null,
+    "run_full_recursive_eval": null,
+    "use_gpu": false,
     "forecast_strategy": "recursive_48h_windows",
     "future_weather_policy": "Use historical weather rows as forecast weather during backtesting."
   },

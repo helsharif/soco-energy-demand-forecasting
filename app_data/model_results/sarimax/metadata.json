@@ -1,0 +1,11 @@
+{
+  "key": "sarimax",
+  "display_name": "SARIMAX",
+  "family": "Statistical baseline",
+  "description": "Demand-only SARIMAX(1,1,1)(1,1,1,24) baseline evaluated with recursive 48-hour windows.",
+  "forecast_horizon_hours": 48,
+  "evaluation_strategy": "recursive_48h_windows",
+  "prediction_rows": 18295,
+  "start": "2024-01-01 00:00:00+00:00",
+  "end": "2026-02-01 06:00:00+00:00"
+}

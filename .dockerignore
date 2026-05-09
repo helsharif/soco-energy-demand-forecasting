@@ -1,28 +1,20 @@
-# ── Exclude everything by default, then allow only what the image needs ────────
-
-# Large model artifacts — sarimax_model.pkl alone is 34 GB.
-# data/ and models/ are mounted as volumes at runtime; they are not COPY'd.
-models/
-data/
-
-# Notebooks, figures, and documentation — not needed inside the container.
-*.ipynb
-figures/
-docs/
-word_doc/
-static_app/
-scripts/
-
-# Git history and dev tooling.
-.git/
-.gitignore
-.vscode/
+.git
 __pycache__/
 *.py[cod]
-*.egg-info/
-
-# Tests — not executed at runtime.
+.venv/
+venv/
+env/
+.pytest_cache/
+.ipynb_checkpoints/
+mlruns/
+mlartifacts/
+mlflow.db
+data/
+models/
+reports/
+figures/
+notebooks/
+*.ipynb
+secrets/
+notes/
 tests/
-
-# README and other root-level docs.
-README.md

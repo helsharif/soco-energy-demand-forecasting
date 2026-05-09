@@ -1,0 +1,2 @@
+model_key,model_name,validation_MAE,validation_RMSE,validation_MAPE,test_MAE,test_RMSE,test_MAPE
+xgboost_pruned_top50,XGBoost Pruned Top-50,637.4163660490665,867.8562804644251,2.319687553591789,687.4231001439123,998.9332275679304,2.455934753997436

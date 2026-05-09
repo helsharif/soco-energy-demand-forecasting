@@ -1,0 +1,30 @@
+{
+  "description": "Dashboard-ready static results exported from completed MLflow/report artifacts.",
+  "models": [
+    {
+      "key": "sarimax",
+      "display_name": "SARIMAX",
+      "family": "Statistical baseline",
+      "description": "Demand-only SARIMAX(1,1,1)(1,1,1,24) baseline evaluated with recursive 48-hour windows."
+    },
+    {
+      "key": "prophet",
+      "display_name": "Prophet",
+      "family": "Decomposable time-series model",
+      "description": "Prophet with daily, weekly, yearly seasonality, U.S. holidays, and targeted CDH/HDH/humidity regressors."
+    },
+    {
+      "key": "xgboost_full",
+      "display_name": "XGBoost Full",
+      "family": "Feature-rich gradient boosting",
+      "description": "Full 100-feature XGBoost model evaluated with leakage-free recursive 48-hour windows."
+    },
+    {
+      "key": "xgboost_pruned_top50",
+      "display_name": "XGBoost Pruned Top-50",
+      "family": "Feature-pruned gradient boosting",
+      "description": "Top-50 feature-pruned XGBoost ablation selected from full-model SHAP importance and evaluated with the same recursive 48-hour setup."
+    }
+  ],
+  "generated_from": "reports/metrics and reports/shap local artifacts"
+}

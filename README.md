@@ -181,12 +181,14 @@ The workflow is designed so future observations do not influence earlier trainin
 * Validation data always comes before test data.
 * The test set is reserved for final evaluation after model selection.
 * Prophet and XGBoost hyperparameters are selected using validation metrics only.
+* XGBoost tuning uses a lightweight direct validation prediction step so Optuna can screen hyperparameters quickly.
 * XGBoost uses engineered lag and rolling-window features that represent past demand behavior.
-* During XGBoost validation and test scoring, demand lag and rolling features are recomputed recursively instead of using precomputed validation/test target-derived columns.
+* After XGBoost hyperparameters are selected, the final recursive 48-hour validation/test evaluation is run once.
+* During final XGBoost validation and test scoring, demand lag and rolling features are recomputed recursively instead of using precomputed validation/test target-derived columns.
 * XGBoost uses the full valid numeric engineered feature set, excluding only the target, raw timestamp/index fields, and obvious future-looking leakage columns.
 * SARIMAX validation and test scoring use repeated 48-hour forecast windows rather than one long open-loop forecast across the full validation or test period.
 * Prophet is evaluated as direct forecasts labeled into 48-hour windows for horizon diagnostics; it uses only a small targeted regressor set and does not require recursive target features or refitting at every forecast origin.
-* Feature columns are checked for future-looking names such as `lead`, `future`, `next_`, or `ahead`.
+* Feature columns are checked for future-looking names such as `lead`, `future`, `next`, `target`, `actual`, `t_plus`, `ahead`, or centered rolling-window indicators.
 * SARIMAX and Prophet use the same target series and the same timestamp windows used by XGBoost.
 
 For operational 48-hour forecasting, future weather values should come from weather forecasts rather than realized future observations. In this portfolio workflow, historical weather rows in `data/soco_modeling_dataset.csv` are used as the stand-in forecast weather during Prophet and XGBoost backtesting.
@@ -209,6 +211,8 @@ Each model run logs:
 * Plotly figures and diagnostic artifacts
 * Trained model artifacts where appropriate
 
+For XGBoost, Optuna trial runs intentionally log only lightweight parameters and validation metrics. Full recursive predictions, Plotly figures, feature importance, model artifacts, and SHAP outputs are logged only after the best hyperparameters have been selected.
+
 Local MLflow tracking uses `mlflow.db`, which is intentionally excluded from Git. Run artifacts are written locally by MLflow and are not committed to the repository.
 
 To inspect local runs:
@@ -229,7 +233,9 @@ Plotly is used for modeling, tuning, evaluation, and reporting figures. Importan
 
 The model scripts also save horizon-level metrics, allowing reviewers to see how error changes from forecast hour 1 through forecast hour 48.
 
-XGBoost interpretability uses SHAP on a reproducible sample of the recursive test forecast feature states. The SHAP sample reflects the feature matrix actually passed to the trained model during recursive 48-hour evaluation, so target-derived lag and rolling features inside each forecast window include prior predictions rather than future actual demand.
+XGBoost interpretability uses SHAP on a reproducible sample of the recursive test forecast feature states. SHAP is computed only once for the selected final model, not during Optuna tuning. The SHAP sample reflects the feature matrix actually passed to the trained model during recursive 48-hour evaluation, so target-derived lag and rolling features inside each forecast window include prior predictions rather than future actual demand.
+
+The XGBoost workflow includes an explicit leakage audit. The audit verifies that target, raw timestamp, future-looking, centered rolling, and target-duplicate columns are excluded from the feature set; tests validate that sampled lag and rolling demand features use prior timestamps only; and a recursive-window test confirms actual demand inside a 48-hour window is not used to build later-horizon lag features. The final XGBoost MLflow run logs the feature list, excluded suspicious columns, horizon-by-horizon error table and plot, recursive predictions, and a 48-hour recursive feature-state sample. A concise audit summary is saved at `reports/xgboost_leakage_audit.md`.
 
 Prophet tuning uses the full validation period by default. For faster experimentation, `prophet.tuning_max_windows` can optionally limit tuning to an early subset of validation forecast windows, but the committed configuration leaves it as `null`.
 
@@ -271,12 +277,28 @@ The three model families below are intentionally selected to compare a demand-on
 * Forecast strategy: Recursive 48-hour forecasting windows
 * Recursive feature handling: Within each 48-hour window, demand lag and rolling features use prior actual demand before the forecast origin and prior predicted demand inside the window
 * Weather assumption: Historical weather columns in the modeling dataset serve as forecast weather during backtesting
-* Tuning: Optuna hyperparameter tuning
+* Tuning: Optuna hyperparameter tuning with lightweight direct validation predictions and early stopping
+* Runtime controls: Full mode runs 50 trials by default and then runs the recursive 48-hour validation/test evaluation once; fast mode is available for debugging with 10 trials, no SHAP, and no full recursive test evaluation
+* Hardware: CPU is the default and reproducible path; optional GPU training can be enabled in `configs/modeling_config.json`
 * Tracking: MLflow experiment tracking for tuning and final evaluation using `scripts/04_tune_xgboost.py`
 * Artifacts: Prediction table, selected feature list, Optuna trials, feature importance, aggregate metrics, error-by-horizon diagnostics, and SHAP interpretability outputs
 * SHAP outputs: Global feature importance, summary/beeswarm plot, top feature table, SHAP values sample, SHAP input sample, and optional dependence plots for CDH, HDH, humidity, and key lagged-demand features
 
 SHAP helps identify whether the final XGBoost model relies most on lagged demand, calendar effects, weather, CDH/HDH features, humidity, or other engineered predictors when producing recursive 48-hour forecasts.
+
+### 4. XGBoost Pruned Top-50 Ablation
+
+**Status:** Experimental / optional
+
+The pruned XGBoost experiment is a model-simplification ablation. It selects the top 50 leakage-safe features from the full XGBoost feature-importance results, preferring `reports/shap/xgboost/shap_top_features.csv`, then tunes and evaluates a separate XGBoost model with the same time-aware split and recursive 48-hour evaluation. The full XGBoost workflow remains the default unless the pruned model achieves comparable validation/test and horizon-level performance.
+
+Run the pruned experiment with:
+
+```bash
+conda run -n energy_demand_ml_env001 python scripts/05_tune_xgboost_pruned.py
+```
+
+Outputs include `reports/xgboost_pruned_comparison.csv`, `reports/xgboost_pruned_experiment_summary.md`, pruned prediction tables, horizon diagnostics, feature list artifacts, and optional SHAP artifacts logged under `shap_pruned/` in MLflow.
 
 ---
 
@@ -309,7 +331,10 @@ In progress / planned:
 ```text
 .
 ├── app/
-│   └── Streamlit application files planned for a later portfolio demo
+│   └── model_results_dashboard.py
+├── app_data/
+│   └── model_results/
+│       └── Static dashboard-ready model result files
 ├── data/
 │   ├── soco_hourly_operations.csv
 │   ├── soco_region_hourly_weather.csv
@@ -336,8 +361,10 @@ In progress / planned:
 ├── e04_EDA.ipynb
 ├── energy_demand_ml_env001.yml
 ├── requirements.txt
-├── Dockerfile
-├── .dockerignore
+├── .streamlit/
+│   └── config.toml
+├── Dockerfile              # Optional local/container deployment only
+├── .dockerignore           # Optional local/container deployment only
 ├── .gitignore
 └── README.md
 ```
@@ -356,9 +383,14 @@ Parquet and ZIP files are kept local and are not uploaded to GitHub.
 
 ## Reproducibility
 
+There are two different Python setup paths in this repository:
+
+* Use `energy_demand_ml_env001.yml` when you want to run notebooks, prepare data, train models, tune models, evaluate forecasts, log MLflow runs, or generate SHAP artifacts.
+* Use `requirements.txt` only when you want to run or deploy the Streamlit dashboard that visualizes already-exported static results.
+
 ### Option 1: Conda Environment
 
-Create the full project environment:
+Create the full project environment for data preparation, model training, model tuning, MLflow tracking, and evaluation:
 
 ```bash
 conda env create -f energy_demand_ml_env001.yml
@@ -366,9 +398,9 @@ conda activate energy_demand_ml_env001
 python -m ipykernel install --user --name energy_demand_ml_env001 --display-name "Python (energy_demand_ml_env001)"
 ```
 
-### Option 2: Pip Environment
+### Option 2: Dashboard Pip Environment
 
-The `requirements.txt` file provides a lighter runtime-oriented environment intended to support future Dockerization and app deployment work:
+The root `requirements.txt` file is intentionally lightweight and is for the deployed Streamlit dashboard only. It does not include the modeling stack required to run SARIMAX, Prophet, XGBoost, Optuna tuning, MLflow experiment generation, or SHAP computation:
 
 ```bash
 python -m venv .venv
@@ -376,20 +408,118 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-For full training and experimentation, the conda environment is recommended.
+Do not use `requirements.txt` to run the modeling scripts. For full training and experimentation, create and activate the conda environment from `energy_demand_ml_env001.yml`. The dashboard does not import or install MLflow, XGBoost, Prophet, statsmodels, Optuna, or SHAP at runtime.
 
-Both `energy_demand_ml_env001.yml` and `requirements.txt` include SHAP for XGBoost model interpretation.
+The conda environment file includes the modeling dependencies used by the training scripts, including SHAP for XGBoost model interpretation.
+
+If an existing environment has a conflicting XGBoost install, refresh it inside the conda environment:
+
+```bash
+conda activate energy_demand_ml_env001
+python -m pip uninstall -y xgboost xgboost-cpu xgboost-cu12 xgboost-cu13
+python -m pip install --upgrade pip
+python -m pip install xgboost-cu13
+```
+
+If that command fails on Windows because no `xgboost-cu13` wheel is available, reinstall the standard Windows wheel so CPU training remains available:
+
+```bash
+python -m pip install xgboost
+```
+
+---
+
+## Streamlit Dashboard Deployment
+
+The Streamlit dashboard is designed for Streamlit Community Cloud and deploys directly from GitHub. Docker is not required for Streamlit Community Cloud.
+
+The dashboard visualizes completed static model results for SARIMAX, Prophet, full XGBoost, and pruned top-50 XGBoost. It does not train models, tune models, run predictions, compute SHAP, or connect to MLflow at runtime.
+
+Static dashboard data live in:
+
+```text
+app_data/model_results/
+```
+
+Main Streamlit file:
+
+```text
+app/model_results_dashboard.py
+```
+
+Run locally with pip:
+
+```bash
+pip install -r requirements.txt
+streamlit run app/model_results_dashboard.py --server.port 8502
+```
+
+Run locally with the conda environment:
+
+```bash
+conda run -n energy_demand_ml_env001 streamlit run app/model_results_dashboard.py --server.port 8502
+```
+
+Then open:
+
+```text
+http://localhost:8502
+```
+
+If `conda run` does not print a useful Streamlit URL on Windows, use the batch launch helper:
+
+```bash
+scripts/run_dashboard.bat 8502
+```
+
+It prints:
+
+```text
+SOCO Model Results Dashboard is starting...
+Open the app in your browser:
+Local URL: http://localhost:8502
+Opening the browser automatically now...
+If the browser does not open automatically, copy/paste the URL above.
+To close the app, return to this terminal and press Ctrl+C.
+If Windows asks "Terminate batch job (Y/N)?", type Y and press Enter.
+```
+
+If you already activated the conda environment, the Python helper is also available:
+
+```bash
+conda activate energy_demand_ml_env001
+python scripts/run_dashboard.py --port 8502
+```
+
+Deploy on Streamlit Community Cloud:
+
+1. Push the repository to GitHub.
+2. Go to Streamlit Community Cloud.
+3. Create a new app from the GitHub repository.
+4. Set the main file path to `app/model_results_dashboard.py`.
+5. Ensure `requirements.txt` is at the repository root.
+6. Deploy.
+
+The optional `Dockerfile` is only for local/container deployment experiments and is not the primary deployment path.
 
 ### Modeling Scripts
 
-Run modeling scripts from the repository root with the conda environment:
+Run modeling scripts from the repository root with the conda environment created from `energy_demand_ml_env001.yml`. These scripts require the full modeling environment, not the dashboard-only `requirements.txt` environment:
 
 ```bash
 conda run -n energy_demand_ml_env001 python scripts/01_prepare_time_splits.py
 conda run -n energy_demand_ml_env001 python scripts/02_train_sarimax.py
 conda run -n energy_demand_ml_env001 python scripts/03_tune_prophet.py
 conda run -n energy_demand_ml_env001 python scripts/04_tune_xgboost.py
+conda run -n energy_demand_ml_env001 python scripts/05_tune_xgboost_pruned.py
 conda run -n energy_demand_ml_env001 python scripts/05_compare_models.py
+```
+
+`scripts/04_tune_xgboost.py` defaults to full portfolio mode through `configs/modeling_config.json`: 50 Optuna trials, early stopping, final recursive 48-hour validation/test evaluation, and SHAP artifacts. For a quick debug run, temporarily use fast mode:
+
+```bash
+$env:XGB_RUN_MODE="fast"
+conda run -n energy_demand_ml_env001 python scripts/04_tune_xgboost.py
 ```
 
 The SARIMAX, Prophet, and XGBoost scripts all load the same `configs/modeling_config.json` file and therefore use the same split windows.
@@ -422,13 +552,10 @@ The modeling workflow is implemented as scripts so it can be rerun consistently 
 
 ## Planned Next Steps
 
-* Run SARIMAX training with MLflow tracking
-* Run Prophet tuning and evaluation with Optuna and MLflow
-* Run XGBoost tuning and evaluation with Optuna and MLflow
-* Evaluate models across the 48-hour forecast horizon
-* Compare model performance using MAE, RMSE, MAPE, and horizon-specific error plots
-* Add final model results, forecast visualizations, and a concise portfolio interpretation
-* Expand the Streamlit app once final model outputs are available
+* Refresh static dashboard exports when new MLflow runs are promoted
+* Add a concise portfolio interpretation of the final model comparison
+* Add selected forecast visualizations from the Streamlit dashboard to the README
+* Continue monitoring 48-hour horizon diagnostics for model weaknesses
 
 ---
 

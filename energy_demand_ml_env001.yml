@@ -32,9 +32,7 @@ dependencies:
   # Machine learning models
   # ---------------------------
   - scikit-learn            # General ML utilities, preprocessing, pipelines
-  - xgboost                 # Gradient boosting (strong baseline for tabular forecasting)
   - lightgbm                # Faster gradient boosting (often best for time series tabular)
-  - shap                    # Python package used for explaining the outputs of any machine learning model
   
   # ---------------------------
   # Forecasting frameworks (ML-based)
@@ -84,6 +82,8 @@ dependencies:
   # Pip-only installs
   # ---------------------------
   - pip:
+      - "xgboost-cu13; platform_system != 'Windows'"  # CUDA 13-enabled XGBoost where wheels are available
+      - "xgboost; platform_system == 'Windows'"       # Windows fallback; xgboost-cu13 currently has no matching wheel
       - prophet            # Additive time series model (trend + seasonality + holidays)
       - holidays           # Holiday features (useful for load forecasting)
       - pmdarima           # Auto-ARIMA (automatic order selection)

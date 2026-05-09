@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from .config import project_path
+from .leakage import is_allowed_target_derived_feature, is_future_looking_name
 
 
 @dataclass(frozen=True)
@@ -121,7 +122,6 @@ def get_feature_columns(df: pd.DataFrame, config: dict) -> list[str]:
         "timestamp",
         "datetime",
     }
-    suspicious_tokens = ("lead", "future", "next_", "t_plus", "ahead")
     feature_columns = []
     for col in df.columns:
         col_lower = col.lower()
@@ -129,15 +129,16 @@ def get_feature_columns(df: pd.DataFrame, config: dict) -> list[str]:
             continue
         if pd.api.types.is_datetime64_any_dtype(df[col]):
             continue
-        if any(token in col_lower for token in suspicious_tokens):
+        if is_future_looking_name(col):
+            continue
+        if config["target_column"] in col and not is_allowed_target_derived_feature(col, config["target_column"]):
             continue
         feature_columns.append(col)
     return feature_columns
 
 
 def validate_leakage_safe_feature_names(feature_columns: list[str]) -> None:
-    suspicious_tokens = ("lead", "future", "next_", "t_plus", "ahead")
-    suspicious = [col for col in feature_columns if any(token in col.lower() for token in suspicious_tokens)]
+    suspicious = [col for col in feature_columns if is_future_looking_name(col)]
     if suspicious:
         raise ValueError(f"Potential future-looking feature names found: {suspicious}")
 
