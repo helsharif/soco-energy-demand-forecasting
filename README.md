@@ -439,6 +439,8 @@ Live app:
 
 [https://soco-energy-demand-forecasting.streamlit.app](https://soco-energy-demand-forecasting.streamlit.app)
 
+![SOCO forecasting Streamlit dashboard screenshot](<figures/SOCO Forecasting Streamlit App 1.png>)
+
 The dashboard visualizes completed static model results for SARIMAX, Prophet, full XGBoost, and pruned top-50 XGBoost. It does not train models, tune models, run predictions, compute SHAP, or connect to MLflow at runtime.
 
 The dashboard is responsive and optimized for both desktop and mobile viewing. On smaller screens, layout spacing, typography, charts, and model metric summaries adapt for smartphone-sized viewports. Desktop users get the normal expanded Streamlit sidebar; mobile users get an in-page **View Settings / Filters** menu so model selection, split selection, plot granularity, and date range controls remain easy to access without relying on the small native sidebar toggle.
