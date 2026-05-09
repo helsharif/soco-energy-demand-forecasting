@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from soco_forecasting.data import create_time_splits, load_modeling_data
 from soco_forecasting.metrics import metrics_by_forecast_horizon, regression_metrics
 from soco_forecasting.mlflow_utils import log_artifacts, log_split_manifest, setup_mlflow
 from soco_forecasting.plots import actual_vs_predicted, horizon_metric_plot, residual_plot, save_plotly_figure
-from soco_forecasting.prophet_model import direct_prophet_48h_windows
+from soco_forecasting.prophet_model import direct_prophet_48h_windows, get_prophet_regressors, validate_prophet_regressors
 
 
 MODEL_NAME = "Prophet"
@@ -32,6 +33,8 @@ def main() -> None:
     dt_col = config["datetime_column"]
     horizon_hours = config["forecast_horizon_hours"]
     tuning_max_windows = config["prophet"].get("tuning_max_windows")
+    prophet_regressors = get_prophet_regressors(config)
+    validate_prophet_regressors(df, config)
 
     def objective(trial: optuna.Trial) -> float:
         params = {
@@ -61,6 +64,7 @@ def main() -> None:
             mlflow.log_params(params)
             mlflow.log_param("forecast_horizon_hours", horizon_hours)
             mlflow.log_param("country_holidays", config["prophet"].get("country_holidays", "none"))
+            mlflow.log_param("prophet_regressors", ",".join(prophet_regressors))
             if tuning_max_windows is not None:
                 mlflow.log_param("tuning_max_windows", tuning_max_windows)
             mlflow.log_metrics({f"validation_{k}": v for k, v in metrics.items()})
@@ -72,6 +76,7 @@ def main() -> None:
         mlflow.log_param("n_trials", config["prophet"]["n_trials"])
         mlflow.log_param("forecast_horizon_hours", horizon_hours)
         mlflow.log_param("country_holidays", config["prophet"].get("country_holidays", "none"))
+        mlflow.log_param("prophet_regressors", ",".join(prophet_regressors))
         mlflow.set_tag("forecast_strategy", "direct_48h_window_evaluation")
         if tuning_max_windows is not None:
             mlflow.log_param("tuning_max_windows", tuning_max_windows)
@@ -135,6 +140,10 @@ def main() -> None:
         trials_path = project_path("reports/metrics/prophet_optuna_trials.csv")
         study.trials_dataframe().to_csv(trials_path, index=False)
 
+        regressors_path = project_path("reports/metrics/prophet_regressors.json")
+        with regressors_path.open("w", encoding="utf-8") as f:
+            json.dump({"regressors": prophet_regressors}, f, indent=2)
+
         fig_paths = []
         fig_paths += save_plotly_figure(
             actual_vs_predicted(
@@ -161,7 +170,7 @@ def main() -> None:
             "reports/figures/prophet_rmse_by_horizon",
         ).values()
 
-        log_artifacts([pred_path, horizon_metrics_path, trials_path, *fig_paths])
+        log_artifacts([pred_path, horizon_metrics_path, trials_path, regressors_path, *fig_paths])
         print(f"MLflow run_id: {run.info.run_id}")
         print({**validation_metrics, **test_metrics})
 

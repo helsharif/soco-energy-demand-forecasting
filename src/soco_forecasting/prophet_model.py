@@ -4,8 +4,23 @@ import pandas as pd
 from prophet import Prophet
 
 
-def to_prophet_frame(df: pd.DataFrame, datetime_col: str, target_col: str) -> pd.DataFrame:
-    out = df[[datetime_col, target_col]].copy()
+def get_prophet_regressors(config: dict) -> list[str]:
+    return list(config["prophet"].get("regressors", []))
+
+
+def validate_prophet_regressors(df: pd.DataFrame, config: dict) -> None:
+    regressors = get_prophet_regressors(config)
+    missing = [col for col in regressors if col not in df.columns]
+    if missing:
+        raise ValueError(f"Missing Prophet regressor columns: {missing}")
+    null_counts = df[regressors].isna().sum() if regressors else pd.Series(dtype=int)
+    with_nulls = null_counts[null_counts > 0].to_dict()
+    if with_nulls:
+        raise ValueError(f"Prophet regressor columns contain null values: {with_nulls}")
+
+
+def to_prophet_frame(df: pd.DataFrame, datetime_col: str, target_col: str, regressors: list[str]) -> pd.DataFrame:
+    out = df[[datetime_col, target_col, *regressors]].copy()
     out[datetime_col] = pd.to_datetime(out[datetime_col]).dt.tz_convert(None)
     out = out.rename(columns={datetime_col: "ds", target_col: "y"})
     return out
@@ -27,6 +42,8 @@ def build_prophet_model(params: dict, config: dict) -> Prophet:
     country_holidays = config["prophet"].get("country_holidays")
     if country_holidays:
         model.add_country_holidays(country_name=country_holidays)
+    for regressor in get_prophet_regressors(config):
+        model.add_regressor(regressor)
     return model
 
 
@@ -50,12 +67,16 @@ def direct_prophet_48h_windows(
     timestamps, and labels results in 48-hour windows for horizon diagnostics.
     """
 
-    train_p = to_prophet_frame(train_df.sort_values(datetime_col), datetime_col, target_col)
+    regressors = get_prophet_regressors(config)
+    validate_prophet_regressors(train_df, config)
+    validate_prophet_regressors(forecast_df, config)
+
+    train_p = to_prophet_frame(train_df.sort_values(datetime_col), datetime_col, target_col, regressors)
     forecast_sorted = forecast_df.sort_values(datetime_col).reset_index(drop=True)
     if max_windows is not None:
         forecast_sorted = forecast_sorted.iloc[: max_windows * horizon_hours].copy()
 
-    future = forecast_sorted[[datetime_col]].copy()
+    future = forecast_sorted[[datetime_col, *regressors]].copy()
     future[datetime_col] = pd.to_datetime(future[datetime_col]).dt.tz_convert(None)
     future = future.rename(columns={datetime_col: "ds"})
 

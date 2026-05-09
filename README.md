@@ -184,11 +184,11 @@ The workflow is designed so future observations do not influence earlier trainin
 * XGBoost uses engineered lag and rolling-window features that represent past demand behavior.
 * During XGBoost validation and test scoring, demand lag and rolling features are recomputed recursively instead of using precomputed validation/test target-derived columns.
 * SARIMAX validation and test scoring use repeated 48-hour forecast windows rather than one long open-loop forecast across the full validation or test period.
-* Prophet is evaluated as direct demand-only forecasts labeled into 48-hour windows for horizon diagnostics; it does not require recursive target features or refitting at every forecast origin.
+* Prophet is evaluated as direct forecasts labeled into 48-hour windows for horizon diagnostics; it uses only a small targeted regressor set and does not require recursive target features or refitting at every forecast origin.
 * Feature columns are checked for future-looking names such as `lead`, `future`, `next_`, or `ahead`.
 * SARIMAX and Prophet use the same target series and the same timestamp windows used by XGBoost.
 
-For operational 48-hour forecasting, future weather values should come from weather forecasts rather than realized future observations. In this portfolio workflow, historical weather rows in `data/soco_modeling_dataset.csv` are used as the stand-in forecast weather during XGBoost backtesting and model comparison.
+For operational 48-hour forecasting, future weather values should come from weather forecasts rather than realized future observations. In this portfolio workflow, historical weather rows in `data/soco_modeling_dataset.csv` are used as the stand-in forecast weather during Prophet and XGBoost backtesting.
 
 ### MLflow Tracking
 
@@ -224,13 +224,13 @@ All models are evaluated with the same core metrics:
 * RMSE
 * MAPE
 
-Plotly is used for modeling, tuning, evaluation, and reporting figures. Important plots are exported to `reports/figures/` and logged to MLflow where useful, including actual vs. predicted demand, residual plots, model comparison charts, and XGBoost feature importance. For recursive 48-hour SARIMAX and XGBoost backtests, actual-vs-predicted and residual figures include dotted vertical markers where the forecast origin resets. Prophet uses direct demand-only forecasts, so its main actual-vs-predicted plots omit reset markers and use horizon-metric plots for the 48-hour evaluation view.
+Plotly is used for modeling, tuning, evaluation, and reporting figures. Important plots are exported to `reports/figures/` and logged to MLflow where useful, including actual vs. predicted demand, residual plots, model comparison charts, and XGBoost feature importance. For recursive 48-hour SARIMAX and XGBoost backtests, actual-vs-predicted and residual figures include dotted vertical markers where the forecast origin resets. Prophet uses direct forecasts, so its main actual-vs-predicted plots omit reset markers and use horizon-metric plots for the 48-hour evaluation view.
 
 The model scripts also save horizon-level metrics, allowing reviewers to see how error changes from forecast hour 1 through forecast hour 48.
 
 Prophet tuning uses the full validation period by default. For faster experimentation, `prophet.tuning_max_windows` can optionally limit tuning to an early subset of validation forecast windows, but the committed configuration leaves it as `null`.
 
-The three model families below are intentionally selected to compare a demand-only statistical baseline, a demand-only decomposable time-series model, and a feature-rich machine learning model.
+The three model families below are intentionally selected to compare a demand-only statistical baseline, a targeted decomposable time-series model, and a feature-rich machine learning model.
 
 ### 1. SARIMAX Baseline
 
@@ -248,11 +248,11 @@ The three model families below are intentionally selected to compare a demand-on
 **Status:** Planned / in progress
 
 * Model: Prophet
-* Inputs: Demand only
+* Inputs: Demand plus three targeted weather-driven regressors
 * Seasonality: Daily, weekly, and yearly seasonality
 * Holidays: U.S. holidays and observed holidays through Prophet's country holiday calendar
-* Exogenous variables: Not used
-* Forecast strategy: Direct demand-only forecasts evaluated in 48-hour horizon windows
+* External regressors: `CDH_regional`, `HDH_regional`, and `relative_humidity_2m_regional_mean`
+* Forecast strategy: Direct forecasts evaluated in 48-hour horizon windows
 * Tuning: Optuna hyperparameter tuning, including yearly seasonality Fourier order
 * Tracking: MLflow experiment tracking for tuning and final evaluation using `scripts/03_tune_prophet.py`
 * Artifacts: Prediction table, Optuna trials, aggregate metrics, and error-by-horizon diagnostics

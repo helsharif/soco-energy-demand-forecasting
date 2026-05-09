@@ -26,6 +26,11 @@
     "weekly_seasonality": true,
     "yearly_seasonality": true,
     "country_holidays": "US",
+    "regressors": [
+      "CDH_regional",
+      "HDH_regional",
+      "relative_humidity_2m_regional_mean"
+    ],
     "forecast_strategy": "direct_48h_window_evaluation",
     "tuning_max_windows": null
   },
