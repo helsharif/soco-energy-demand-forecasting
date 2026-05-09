@@ -32,6 +32,10 @@ ACTUAL_COLOR = "#000000"
 MODEL_TRACE_OPACITY = 0.85
 MODEL_TRACE_WIDTH = 2.4
 ACTUAL_TRACE_WIDTH = 3
+CHART_FONT_SIZE = 21
+CHART_TITLE_FONT_SIZE = 26
+CHART_AXIS_FONT_SIZE = 20
+CHART_LEGEND_FONT_SIZE = 18
 
 TIMESTAMP_CANDIDATES = [
     "forecast_timestamp",
@@ -53,6 +57,111 @@ st.set_page_config(
     page_title="SOCO Energy Demand Forecasting",
     layout="wide",
     initial_sidebar_state="expanded",
+)
+
+st.markdown(
+    """
+    <style>
+    html, body, .stApp {
+        font-size: 22px;
+    }
+
+    .block-container {
+        max-width: 2800px;
+        padding-top: 4.2rem;
+        padding-left: 4rem;
+        padding-right: 4rem;
+    }
+
+    [data-testid="stSidebar"] {
+        min-width: 430px;
+        max-width: 480px;
+    }
+
+    [data-testid="stSidebar"] * {
+        font-size: 1.08rem;
+    }
+
+    h1 {
+        font-size: 3.25rem !important;
+        line-height: 1.12 !important;
+        letter-spacing: 0 !important;
+    }
+
+    h2 {
+        font-size: 2.35rem !important;
+        line-height: 1.2 !important;
+        letter-spacing: 0 !important;
+        margin-top: 2.2rem !important;
+    }
+
+    h3 {
+        font-size: 1.7rem !important;
+        letter-spacing: 0 !important;
+    }
+
+    [data-testid="stMarkdownContainer"] p,
+    [data-testid="stCaptionContainer"],
+    div[data-testid="stDataFrame"] {
+        font-size: 1.08rem !important;
+        line-height: 1.55 !important;
+    }
+
+    .dashboard-subtitle {
+        color: #6b7280;
+        font-size: 1.12rem !important;
+        line-height: 1.55 !important;
+        max-width: 1500px;
+        margin-top: -0.35rem;
+        margin-bottom: 1.8rem;
+    }
+
+    label,
+    [data-testid="stRadio"] label,
+    [data-testid="stCheckbox"] label {
+        font-size: 1.08rem !important;
+    }
+
+    .stSlider [data-baseweb="slider"] {
+        padding-top: 0.35rem;
+        padding-bottom: 0.55rem;
+    }
+
+    .metric-table-wrap table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    .metric-table-wrap th,
+    .metric-table-wrap td {
+        text-align: center !important;
+        vertical-align: middle !important;
+        border-right: 1px solid #e5e7eb;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .metric-table-wrap th {
+        background: #f8fafc;
+        color: #4b5563;
+        font-weight: 600;
+    }
+
+    .metric-table-wrap tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .metric-table-wrap th:last-child,
+    .metric-table-wrap td:last-child {
+        border-right: 0;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 
@@ -246,26 +355,79 @@ def metric_table(filtered_by_model: dict[str, pd.DataFrame], models: list[dict])
         for model in models:
             row[model["display_name"]] = calculate_metrics(filtered_by_model.get(model["key"], pd.DataFrame()))[metric]
         rows.append(row)
-    return pd.DataFrame(rows).set_index("Metric")
+    return pd.DataFrame(rows)
 
 
 def style_metric_table(df: pd.DataFrame):
     def highlight_best(row: pd.Series) -> list[str]:
-        numeric = pd.to_numeric(row, errors="coerce")
+        numeric = pd.to_numeric(row.drop(labels=["Metric"], errors="ignore"), errors="coerce")
         best = numeric.min(skipna=True)
-        return [
-            "background-color: #dcfce7; color: #14532d; font-weight: 700" if pd.notna(value) and value == best else ""
-            for value in numeric
-        ]
+        styles = []
+        for col, value in row.items():
+            if col == "Metric":
+                styles.append("font-weight: 600; color: #4b5563;")
+            elif pd.notna(value) and value == best:
+                styles.append("background-color: #dcfce7; color: #14532d; font-weight: 700;")
+            else:
+                styles.append("")
+        return styles
 
-    return df.style.format("{:,.2f}", na_rep="n/a").apply(highlight_best, axis=1)
+    return (
+        df.style.hide(axis="index")
+        .format({col: "{:,.2f}" for col in df.columns if col != "Metric"}, na_rep="n/a")
+        .apply(highlight_best, axis=1)
+        .set_table_styles(
+            [
+                {
+                    "selector": "td",
+                    "props": [
+                        ("font-size", "20px"),
+                        ("padding", "0.85rem 1rem"),
+                        ("text-align", "center"),
+                    ],
+                },
+                {
+                    "selector": "th",
+                    "props": [
+                        ("font-size", "20px"),
+                        ("font-weight", "700"),
+                        ("padding", "0.85rem 1rem"),
+                        ("text-align", "center"),
+                    ],
+                },
+            ]
+        )
+    )
+
+
+def polish_figure(fig: go.Figure, height: int) -> go.Figure:
+    fig.update_layout(
+        height=height,
+        font=dict(size=CHART_FONT_SIZE, color="#1f2937"),
+        title=dict(font=dict(size=CHART_TITLE_FONT_SIZE, color="#111827")),
+        legend=dict(font=dict(size=CHART_LEGEND_FONT_SIZE), title_font=dict(size=CHART_LEGEND_FONT_SIZE)),
+        margin=dict(l=20, r=30, t=70, b=55),
+    )
+    fig.update_xaxes(
+        title_font=dict(size=CHART_AXIS_FONT_SIZE),
+        tickfont=dict(size=CHART_AXIS_FONT_SIZE - 2),
+        gridcolor="#e5e7eb",
+        zerolinecolor="#d1d5db",
+    )
+    fig.update_yaxes(
+        title_font=dict(size=CHART_AXIS_FONT_SIZE),
+        tickfont=dict(size=CHART_AXIS_FONT_SIZE - 2),
+        gridcolor="#e5e7eb",
+        zerolinecolor="#d1d5db",
+    )
+    return fig
 
 
 def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granularity: str) -> go.Figure:
     fig = go.Figure()
     if df.empty:
         fig.update_layout(title="Actual vs Predicted Demand")
-        return fig
+        return polish_figure(fig, height=900)
 
     actual_df = df.groupby("timestamp", as_index=False).agg(actual=("actual", "mean")).sort_values("timestamp")
     fig.add_trace(
@@ -304,12 +466,10 @@ def actual_vs_predicted_plot(df: pd.DataFrame, selected_labels: list[str], granu
         title=f"Actual vs Predicted Demand ({granularity})",
         xaxis_title="Date",
         yaxis_title="Demand (MWh)",
-        height=560,
         hovermode="x unified",
         legend_title_text="Series",
-        margin=dict(l=10, r=20, t=55, b=40),
     )
-    return fig
+    return polish_figure(fig, height=900)
 
 
 def residual_plot(df: pd.DataFrame, selected_labels: list[str]) -> go.Figure:
@@ -333,10 +493,8 @@ def residual_plot(df: pd.DataFrame, selected_labels: list[str]) -> go.Figure:
         title="Residuals Over Time",
         xaxis_title="Date",
         yaxis_title="Actual - Predicted (MWh)",
-        height=440,
-        margin=dict(l=10, r=20, t=55, b=40),
     )
-    return fig
+    return polish_figure(fig, height=650)
 
 
 def horizon_plot(df: pd.DataFrame, metric: str, selected_labels: list[str]) -> go.Figure:
@@ -352,8 +510,7 @@ def horizon_plot(df: pd.DataFrame, metric: str, selected_labels: list[str]) -> g
         title=f"{metric} by Forecast Horizon (Full Selected Split)",
     )
     fig.update_traces(opacity=MODEL_TRACE_OPACITY)
-    fig.update_layout(height=440, margin=dict(l=10, r=20, t=55, b=40))
-    return fig
+    return polish_figure(fig, height=650)
 
 
 def prepare_importance(model_key: str, data: dict, top_n: int = 20) -> pd.DataFrame:
@@ -405,9 +562,8 @@ def interpretability_plot(importance_df: pd.DataFrame, anchor_model_key: str | N
         labels={"score": "Importance", "feature": "Feature", "model_name": "Model"},
         title="XGBoost Feature Importance / SHAP Summary",
     )
-    fig.update_layout(height=620, margin=dict(l=10, r=20, t=55, b=40))
     fig.update_yaxes(categoryorder="array", categoryarray=ordered_features, autorange="reversed")
-    return fig
+    return polish_figure(fig, height=860)
 
 
 def date_bounds(predictions: list[pd.DataFrame], split: str, selected_labels: list[str]) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
@@ -421,9 +577,16 @@ def date_bounds(predictions: list[pd.DataFrame], split: str, selected_labels: li
 
 
 st.title("⚡ SOCO 48-Hour Energy Demand Forecasting Results")
-st.caption(
-    "Interactive portfolio dashboard for static SARIMAX, Prophet, full XGBoost, and pruned XGBoost results. "
-    "The app reads files from app_data/model_results and does not train models or connect to MLflow."
+st.markdown(
+    """
+    <p class="dashboard-subtitle">
+    Interactive portfolio dashboard comparing <strong>SARIMAX</strong>, <strong>Prophet</strong>, and <strong>XGBoost</strong>
+    for 48-hour electricity demand forecasting across the Southern Company (SOCO) balancing authority. The project blends
+    historical load patterns, weather signals, calendar effects, and engineered time-series features to evaluate forecasting
+    performance in a realistic grid-operations setting.
+    </p>
+    """,
+    unsafe_allow_html=True,
 )
 
 if not DATA_DIR.exists():
@@ -508,7 +671,10 @@ if page == "Results Dashboard":
     st.subheader("🎯 Filtered Model Metrics")
     st.caption("Metrics are recalculated from the currently selected split, date range, and plot granularity. Lower values are better; green marks the best model for each row.")
     metrics_df = metric_table(filtered_by_model, available)
-    st.dataframe(style_metric_table(metrics_df), width="stretch")
+    st.markdown(
+        f'<div class="metric-table-wrap">{style_metric_table(metrics_df).to_html()}</div>',
+        unsafe_allow_html=True,
+    )
 
     st.subheader("Residuals")
     st.caption("Residuals near zero indicate lower bias/error. Clusters or spikes may indicate peak demand events, weather extremes, holidays, or other difficult operating conditions.")
