@@ -433,6 +433,10 @@ python -m pip install xgboost
 
 The Streamlit dashboard is designed for Streamlit Community Cloud and deploys directly from GitHub. Docker is not required for Streamlit Community Cloud.
 
+Live app:
+
+[https://soco-energy-demand-forecasting.streamlit.app](https://soco-energy-demand-forecasting.streamlit.app)
+
 The dashboard visualizes completed static model results for SARIMAX, Prophet, full XGBoost, and pruned top-50 XGBoost. It does not train models, tune models, run predictions, compute SHAP, or connect to MLflow at runtime.
 
 Static dashboard data live in:
